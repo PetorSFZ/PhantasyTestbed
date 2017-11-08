@@ -30,3 +30,5 @@ install_manifest.txt
 # Build directories
 build/
 build_msvc14/
+build_emscripten_release/
+build_emscripten_debug/
