@@ -32,3 +32,4 @@ build/
 build_msvc14/
 build_emscripten_release/
 build_emscripten_debug/
+build_xcode/
