@@ -11,3 +11,18 @@ cd build_xcode
 
 # Generate build files
 cmake .. -GXcode
+
+# Create resources symlinks
+mkdir Debug
+cd Debug
+ln -s ../../resources resources
+
+cd ..
+mkdir RelWithDebInfo
+cd RelWithDebInfo
+ln -s ../../resources resources
+
+cd ..
+mkdir Release
+cd Release
+ln -s ../../resources resources

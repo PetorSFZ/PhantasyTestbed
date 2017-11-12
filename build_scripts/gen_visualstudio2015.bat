@@ -40,13 +40,13 @@ cd build_msvc14
 cmake .. -G "Visual Studio 14 2015 Win64"
 
 : Create resources symlinks
-: cd Debug
-: mklink /D resources\ ..\..\resources
+cd Debug
+mklink /D resources\ ..\..\resources
 
-: cd ..\RelWithDebInfo
-: mklink /D resources\ ..\..\resources
+cd ..\RelWithDebInfo
+mklink /D resources\ ..\..\resources
 
-: cd ..\Release
-: mklink /D resources\ ..\..\resources
+cd ..\Release
+mklink /D resources\ ..\..\resources
 
 PAUSE
