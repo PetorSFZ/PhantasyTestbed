@@ -4,6 +4,8 @@
 #include <ph/game_loop/GameLoopUpdateable.hpp>
 #include <ph/rendering/CameraData.h>
 
+#include "SponzaLoader.hpp"
+
 #include <SDL.h>
 
 using ph::GameLoopUpdateable;
@@ -74,4 +76,5 @@ private:
 	EmulatedGameController mEmulatedController;
 	ph::GameControllerState mCtrl;
 	DynArray<ph::SphereLight> mDynamicSphereLights;
+	ph::Level mLevel;
 };

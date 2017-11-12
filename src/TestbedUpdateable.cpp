@@ -2,6 +2,7 @@
 
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
+#include <sfz/util/IO.hpp>
 
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/utils/Logging.hpp>
@@ -212,7 +213,9 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	if (mInitialized) return;
 	mInitialized = true;
 
-	renderer.addDynamicMesh(createCubeModel(getDefaultAllocator()));
+	//renderer.addDynamicMesh(createCubeModel(getDefaultAllocator()));
+	mLevel = loadStaticSceneSponza(sfz::basePath(), "resources/sponzaPBR/sponzaPBR.obj", mat44::scaling3(0.05f));
+	renderer.setDynamicMeshes(mLevel.meshes);
 
 	// Initial camera
 	mCam.pos = vec3(3.0f, 3.0f, 3.0f);
@@ -325,9 +328,14 @@ void TestbedUpdateable::render(Renderer& renderer, const UpdateInfo& updateInfo)
 
 	renderer.beginFrame(mCam, mDynamicSphereLights);
 
-	ph::RenderEntity entity;
-	entity.meshIndex = 0;
-	renderer.render(&entity, 1);
+	DynArray<ph::RenderEntity> entities;
+	for (uint32_t i = 0; i < mLevel.meshes.size(); i++) {
+		ph::RenderEntity entity;
+		entity.meshIndex = i;
+		entities.add(entity);
+	}
+
+	renderer.render(entities.data(), entities.size());
 
 	renderer.finishFrame();
 }

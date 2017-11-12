@@ -64,6 +64,7 @@ endif()
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(EXTERNALS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/externals)
 
 # Dependencies
 # ------------------------------------------------------------------------------------------------
@@ -148,13 +149,18 @@ else()
 	)
 endif()
 
+# Assimp
+add_subdirectory(${EXTERNALS_DIR}/assimp)
+
 # Executable
 # ------------------------------------------------------------------------------------------------
 
 set(SRC_FILES
+		${SRC_DIR}/PhantasyTestbedMain.cpp
+	${INCLUDE_DIR}/SponzaLoader.hpp
+		${SRC_DIR}/SponzaLoader.cpp
 	${INCLUDE_DIR}/TestbedUpdateable.hpp
-	${SRC_DIR}/TestbedUpdateable.cpp
-	${SRC_DIR}/PhantasyTestbedMain.cpp
+		${SRC_DIR}/TestbedUpdateable.cpp
 )
 
 add_executable(PhantasyTestbed ${SRC_FILES})
@@ -164,12 +170,14 @@ target_include_directories(PhantasyTestbed PUBLIC
 	${SFZ_CORE_INCLUDE_DIRS}
 	${PH_SHARED_INTERFACE_INCLUDE_DIRS}
 	${PHANTASY_ENGINE_INCLUDE_DIRS}
+	${ASSIMP_INCLUDE_DIRS}
 )
 
 target_link_libraries(PhantasyTestbed
 	${SDL2_LIBRARIES}
 	${SFZ_CORE_LIBRARIES}
 	${PHANTASY_ENGINE_LIBRARIES}
+	${ASSIMP_LIBRARIES}
 )
 
 if(EMSCRIPTEN)
@@ -192,4 +200,8 @@ if(MSVC)
 	file(COPY ${SFZ_GL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
 	file(COPY ${SFZ_GL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
 	file(COPY ${SFZ_GL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release)
+
+	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
+	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
+	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/Release)
 endif()
