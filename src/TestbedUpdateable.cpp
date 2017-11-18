@@ -215,7 +215,16 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 
 	//renderer.addDynamicMesh(createCubeModel(getDefaultAllocator()));
 	mLevel = loadStaticSceneSponza(sfz::basePath(), "resources/sponzaPBR/sponzaPBR.obj", mat44::scaling3(0.05f));
+	renderer.setMaterials(mLevel.materials);
 	renderer.setDynamicMeshes(mLevel.meshes);
+
+	// Create RenderEntitites to render
+	mEntities.create(mLevel.meshes.size());
+	for (uint32_t i = 0; i < mLevel.meshes.size(); i++) {
+		ph::RenderEntity entity;
+		entity.meshIndex = i;
+		mEntities.add(entity);
+	}
 
 	// Initial camera
 	mCam.pos = vec3(3.0f, 3.0f, 3.0f);
@@ -328,14 +337,7 @@ void TestbedUpdateable::render(Renderer& renderer, const UpdateInfo& updateInfo)
 
 	renderer.beginFrame(mCam, mDynamicSphereLights);
 
-	DynArray<ph::RenderEntity> entities;
-	for (uint32_t i = 0; i < mLevel.meshes.size(); i++) {
-		ph::RenderEntity entity;
-		entity.meshIndex = i;
-		entities.add(entity);
-	}
-
-	renderer.render(entities.data(), entities.size());
+	renderer.render(mEntities.data(), mEntities.size());
 
 	renderer.finishFrame();
 }

@@ -77,4 +77,5 @@ private:
 	ph::GameControllerState mCtrl;
 	DynArray<ph::SphereLight> mDynamicSphereLights;
 	ph::Level mLevel;
+	DynArray<ph::RenderEntity> mEntities;
 };
