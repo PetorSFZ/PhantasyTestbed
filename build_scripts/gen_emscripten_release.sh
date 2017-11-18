@@ -12,5 +12,8 @@ cd build_emscripten_release
 # Generate build files
 cmake .. -DCMAKE_TOOLCHAIN_FILE="$EMSCRIPTEN/cmake/Modules/Platform/Emscripten.cmake" -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
 
+# Create resources symlink
+ln -s ../resources resources
+
 # Copy index.html file to build directory
 cp ../index.html index.html

@@ -12,5 +12,8 @@ cd build_emscripten_debug
 # Generate build files
 cmake .. -DCMAKE_TOOLCHAIN_FILE="$EMSCRIPTEN/cmake/Modules/Platform/Emscripten.cmake" -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug
 
+# Create resources symlink
+ln -s ../resources resources
+
 # Copy index.html file to build directory
 cp ../index.html index.html
