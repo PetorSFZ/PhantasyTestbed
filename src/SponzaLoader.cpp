@@ -11,6 +11,8 @@
 #include <sfz/strings/DynString.hpp>
 #include <sfz/strings/StringHashers.hpp>
 
+#include <ph/utils/Logging.hpp>
+
 namespace ph {
 
 using namespace sfz;
@@ -38,7 +40,7 @@ static void processNode(const char* basePath, Level& level,
 
 	// Process all meshes in current node
 	for (uint32_t meshIndex = 0; meshIndex < node->mNumMeshes; meshIndex++) {
-		
+
 		const aiMesh* mesh = scene->mMeshes[node->mMeshes[meshIndex]];
 		Mesh meshTmp;
 		Material materialTmp;
@@ -80,13 +82,14 @@ static void processNode(const char* basePath, Level& level,
 
 			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
-				printf("Loaded albedo texture: %s\n", tmpPath.C_Str());
+				PH_LOG(LOG_LEVEL_INFO, "SponzaLoader", "Loaded albedo texture: %s",
+					tmpPath.C_Str());
 
 				const uint32_t nextIndex = level.textures.size();
 				level.texMapping[tmpPath.C_Str()] = nextIndex;
 				indexPtr = level.texMapping.get(tmpPath.C_Str());
 
-				level.textures.add(StackString256(tmpPath.C_Str()));
+				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
 			}
 			materialTmp.albedoTexIndex = *indexPtr;
 		}
@@ -103,16 +106,17 @@ static void processNode(const char* basePath, Level& level,
 
 			tmpPath.Clear();
 			mat->GetTexture(aiTextureType_SHININESS, 0, &tmpPath);
-			
+
 			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
-				printf("Loaded roughness texture: %s\n", tmpPath.C_Str());
+				PH_LOG(LOG_LEVEL_INFO, "SponzaLoader", "Loaded roughness texture: %s",
+					tmpPath.C_Str());
 
 				const uint32_t nextIndex = level.textures.size();
 				level.texMapping[tmpPath.C_Str()] = nextIndex;
 				indexPtr = level.texMapping.get(tmpPath.C_Str());
 
-				level.textures.add(StackString256(tmpPath.C_Str()));
+				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
 			}
 			materialTmp.roughnessTexIndex = *indexPtr;
 		}
@@ -131,13 +135,14 @@ static void processNode(const char* basePath, Level& level,
 
 			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
-				printf("Loaded metallic texture: %s\n", tmpPath.C_Str());
+				PH_LOG(LOG_LEVEL_INFO, "SponzaLoader", "Loaded metallic texture: %s",
+					tmpPath.C_Str());
 
 				const uint32_t nextIndex = level.textures.size();
 				level.texMapping[tmpPath.C_Str()] = nextIndex;
 				indexPtr = level.texMapping.get(tmpPath.C_Str());
 
-				level.textures.add(StackString256(tmpPath.C_Str()));
+				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
 			}
 			materialTmp.metallicTexIndex = *indexPtr;
 		}

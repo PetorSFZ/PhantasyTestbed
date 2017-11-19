@@ -6,6 +6,7 @@
 
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/utils/Logging.hpp>
+#include <ph/rendering/Image.hpp>
 #include <ph/rendering/Renderer.hpp>
 
 using namespace sfz;
@@ -213,6 +214,7 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	if (mInitialized) return;
 	mInitialized = true;
 
+	setLoadImageAllocator(getDefaultAllocator());
 	//renderer.addDynamicMesh(createCubeModel(getDefaultAllocator()));
 	mLevel = loadStaticSceneSponza(sfz::basePath(), "resources/sponzaPBR/sponzaPBR.obj", mat44::scaling3(0.05f));
 	renderer.setMaterials(mLevel.materials);

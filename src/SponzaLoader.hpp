@@ -9,6 +9,7 @@
 #include <sfz/math/Vector.hpp>
 #include <sfz/strings/StackString.hpp>
 
+#include <ph/rendering/Image.hpp>
 #include <ph/rendering/Material.h>
 #include <ph/rendering/Mesh.h>
 #include <ph/rendering/Vertex.h>
@@ -22,8 +23,8 @@ using sfz::HashMap;
 
 struct Level final {
 	DynArray<Mesh> meshes;
+	DynArray<Image> textures;
 	DynArray<Material> materials;
-	DynArray<StackString256> textures;
 
 	HashMap<StackString256, uint32_t> texMapping;
 };
