@@ -82,9 +82,6 @@ static void processNode(const char* basePath, Level& level,
 
 			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
-				PH_LOG(LOG_LEVEL_INFO, "SponzaLoader", "Loaded albedo texture: %s",
-					tmpPath.C_Str());
-
 				const uint32_t nextIndex = level.textures.size();
 				level.texMapping[tmpPath.C_Str()] = nextIndex;
 				indexPtr = level.texMapping.get(tmpPath.C_Str());
@@ -109,9 +106,6 @@ static void processNode(const char* basePath, Level& level,
 
 			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
-				PH_LOG(LOG_LEVEL_INFO, "SponzaLoader", "Loaded roughness texture: %s",
-					tmpPath.C_Str());
-
 				const uint32_t nextIndex = level.textures.size();
 				level.texMapping[tmpPath.C_Str()] = nextIndex;
 				indexPtr = level.texMapping.get(tmpPath.C_Str());
@@ -135,9 +129,6 @@ static void processNode(const char* basePath, Level& level,
 
 			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
-				PH_LOG(LOG_LEVEL_INFO, "SponzaLoader", "Loaded metallic texture: %s",
-					tmpPath.C_Str());
-
 				const uint32_t nextIndex = level.textures.size();
 				level.texMapping[tmpPath.C_Str()] = nextIndex;
 				indexPtr = level.texMapping.get(tmpPath.C_Str());

@@ -217,6 +217,7 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	setLoadImageAllocator(getDefaultAllocator());
 	//renderer.addDynamicMesh(createCubeModel(getDefaultAllocator()));
 	mLevel = loadStaticSceneSponza(sfz::basePath(), "resources/sponzaPBR/sponzaPBR.obj", mat44::scaling3(0.05f));
+	renderer.setTextures(mLevel.textures);
 	renderer.setMaterials(mLevel.materials);
 	renderer.setDynamicMeshes(mLevel.meshes);
 
