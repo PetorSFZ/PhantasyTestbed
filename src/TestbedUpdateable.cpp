@@ -233,17 +233,27 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	mCam.pos = vec3(3.0f, 3.0f, 3.0f);
 	mCam.dir = sfz::normalize(vec3(-1.0f, -0.25f, -1.0f));
 	mCam.up =  vec3(0.0f, 1.0f, 0.0f);
-	mCam.near = 0.01f;
-	mCam.far = 100.0f;
+	mCam.near = 0.05f;
+	mCam.far = 200.0f;
 	mCam.vertFovDeg = 75.0f;
 
-	// Dynamic lights
-	ph::SphereLight tmpLight;
-	tmpLight.pos = vec3(2.0f, 10.0f, 6.0f);
-	tmpLight.radius = 10.0f;
-	mDynamicSphereLights.add(tmpLight);
-	tmpLight.pos = vec3(1.0f, -10.0f, -1.0f);
-	mDynamicSphereLights.add(tmpLight);
+	// Add dynamic lights
+	vec3 lightColors[] = {
+		vec3(1.0f, 0.0f, 1.0f),
+		vec3(1.0f, 1.0f, 1.0f)
+	};
+	uint32_t numLights = sizeof(lightColors) / sizeof(vec3);
+	for (uint32_t i = 0; i < numLights; i++) {
+		ph::SphereLight tmp;
+
+		tmp.pos = vec3(-50.0f + 100.0f * i / (numLights - 1), 5.0f, 0.0f);
+		tmp.range = 70.0f;
+		tmp.strength = 300.0f * lightColors[i];
+		tmp.radius = 0.5f;
+		tmp.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
+
+		mDynamicSphereLights.add(tmp);
+	}
 }
 
 UpdateOp TestbedUpdateable::processInput(const UpdateInfo& updateInfo, const UserInput& input)
