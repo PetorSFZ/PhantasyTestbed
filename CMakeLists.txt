@@ -92,6 +92,18 @@ add_subdirectory(${sdl2_SOURCE_DIR})
 message("Finished acquiring SDL2")
 
 # sfzCore
+# ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
+#message("Acquiring sfzCore")
+#download_project(
+#	PROJ                sfzCore
+#	PREFIX              externals
+#	GIT_REPOSITORY      https://github.com/PetorSFZ/sfzCore.git
+#	GIT_TAG             380611a616f0ff1d9fb241b82fc401087f1a61ba
+#	UPDATE_DISCONNECTED 1
+#	QUIET
+#)
+#add_subdirectory(${sfzCore_SOURCE_DIR})
+#message("Finished acquiring sfzCore")
 add_subdirectory(
 	${ROOT_DIR}/sfzCore
 	${CMAKE_BINARY_DIR}/sfzCore
