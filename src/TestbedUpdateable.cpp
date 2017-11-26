@@ -261,7 +261,7 @@ UpdateOp TestbedUpdateable::processInput(const UpdateInfo& updateInfo, const Use
 	(void)updateInfo;
 
 	// Update gamecontroller
-	updateEmulatedController(input.events);
+	updateEmulatedController(input.events, input.rawMouse);
 	uint32_t controllerIndex = 0;
 	const GameController* controller = input.controllers.get(controllerIndex);
 	mCtrl = (controller != nullptr) ? controller->state() : mEmulatedController.state;
@@ -365,7 +365,9 @@ void TestbedUpdateable::setDir(vec3 direction, vec3 up) noexcept
 	sfz_assert_debug(approxEqual(dot(mCam.dir, mCam.up), 0.0f));
 }
 
-void TestbedUpdateable::updateEmulatedController(const DynArray<SDL_Event>& events) noexcept
+void TestbedUpdateable::updateEmulatedController(
+	const DynArray<SDL_Event>& events,
+	const Mouse& rawMouse) noexcept
 {
 	EmulatedGameController& ec = mEmulatedController;
 	sdl::GameControllerState& c = ec.state;
@@ -573,30 +575,18 @@ void TestbedUpdateable::updateEmulatedController(const DynArray<SDL_Event>& even
 	ec.state.leftStick = leftStick;
 
 	// Set right stick
-	vec2 rightStick = vec2(0.0f);
-	if (ec.rightStickUp != ButtonState::NOT_PRESSED) rightStick.y = 1.0f;
-	else if (ec.rightStickDown != ButtonState::NOT_PRESSED) rightStick.y = -1.0f;
-	if (ec.rightStickLeft != ButtonState::NOT_PRESSED) rightStick.x = -1.0f;
-	else if (ec.rightStickRight != ButtonState::NOT_PRESSED) rightStick.x = 1.0f;
+	vec2 rightStick = rawMouse.motion * 200.0f;
 
-	rightStick = safeNormalize(rightStick);
+	if (ec.rightStickUp != ButtonState::NOT_PRESSED) rightStick.y += 1.0f;
+	else if (ec.rightStickDown != ButtonState::NOT_PRESSED) rightStick.y += -1.0f;
+	if (ec.rightStickLeft != ButtonState::NOT_PRESSED) rightStick.x += -1.0f;
+	else if (ec.rightStickRight != ButtonState::NOT_PRESSED) rightStick.x += 1.0f;
+
 	if (ec.shiftPressed != ButtonState::NOT_PRESSED) rightStick *= 0.5f;
-
 	ec.state.rightStick = rightStick;
 
-
-
-	// Set right stick
-	// TODO: Fix when mouse is available
-	//mEmulatedController.state.rightStick = rawMouse.motion * 200.0f;
-
-	/*const uint8_t* keys = SDL_GetKeyboardState(nullptr);
-	vec2 arrowKeyVector(keys[SDL_SCANCODE_RIGHT] - keys[SDL_SCANCODE_LEFT], keys[SDL_SCANCODE_UP] - keys[SDL_SCANCODE_DOWN]);
-	mEmulatedController.state.rightStick += 0.7f * arrowKeyVector;*/
-
 	// Set triggers
-	// TODO: Fix when mouse is available
-	/*if (rawMouse.leftButton == ButtonState::NOT_PRESSED) {
+	if (rawMouse.leftButton == ButtonState::NOT_PRESSED) {
 		mEmulatedController.state.rightTrigger = 0.0f;
 	} else {
 		mEmulatedController.state.rightTrigger = 1.0f;
@@ -605,5 +595,5 @@ void TestbedUpdateable::updateEmulatedController(const DynArray<SDL_Event>& even
 		mEmulatedController.state.leftTrigger = 0.0f;
 	} else {
 		mEmulatedController.state.leftTrigger = 1.0f;
-	}*/
+	}
 }

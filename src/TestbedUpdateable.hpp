@@ -15,6 +15,7 @@ using ph::UpdateInfo;
 using ph::UserInput;
 using sfz::DynArray;
 using ph::sdl::ButtonState;
+using ph::sdl::Mouse;
 using sfz::vec3;
 
 // TestbedUpdateable
@@ -65,8 +66,7 @@ private:
 
 	void setDir(vec3 direction, vec3 up) noexcept;
 
-	void updateEmulatedController(const DynArray<SDL_Event>& events) noexcept;
-	//void updateEmulatedController(const DynArray<SDL_Event>& events, const Mouse& rawMouse) noexcept;
+	void updateEmulatedController(const DynArray<SDL_Event>& events, const Mouse& rawMouse) noexcept;
 
 	// Private members
 	// --------------------------------------------------------------------------------------------
