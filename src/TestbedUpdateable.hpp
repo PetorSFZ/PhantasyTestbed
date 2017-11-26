@@ -14,7 +14,7 @@ using ph::UpdateOp;
 using ph::UpdateInfo;
 using ph::UserInput;
 using sfz::DynArray;
-using sfz::sdl::ButtonState;
+using ph::sdl::ButtonState;
 using sfz::vec3;
 
 // TestbedUpdateable
@@ -45,7 +45,7 @@ private:
 	// --------------------------------------------------------------------------------------------
 
 	struct EmulatedGameController {
-		sfz::sdl::GameControllerState state;
+		ph::sdl::GameControllerState state;
 
 		ButtonState leftStickUp = ButtonState::NOT_PRESSED;
 		ButtonState leftStickDown = ButtonState::NOT_PRESSED;
