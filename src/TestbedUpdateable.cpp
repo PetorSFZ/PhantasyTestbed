@@ -217,7 +217,9 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	setLoadImageAllocator(getDefaultAllocator());
 	//renderer.addDynamicMesh(createCubeModel(getDefaultAllocator()));
 	mLevel = loadStaticSceneSponza("", "resources/sponzaPBR/sponzaPBR.obj", mat44::scaling3(0.05f));
-	renderer.setTextures(mLevel.textures);
+	DynArray<ConstImageView> textureViews;
+	for (const auto& texture : mLevel.textures) textureViews.add(texture);
+	renderer.setTextures(textureViews);
 	renderer.setMaterials(mLevel.materials);
 	renderer.setDynamicMeshes(mLevel.meshes);
 
@@ -235,7 +237,7 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	mCam.up =  vec3(0.0f, 1.0f, 0.0f);
 	mCam.near = 0.05f;
 	mCam.far = 200.0f;
-	mCam.vertFovDeg = 75.0f;
+	mCam.vertFovDeg = 60.0f;
 
 	// Add dynamic lights
 	vec3 lightColors[] = {
