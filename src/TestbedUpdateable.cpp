@@ -221,7 +221,9 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	for (const auto& texture : mLevel.textures) textureViews.add(texture);
 	renderer.setTextures(textureViews);
 	renderer.setMaterials(mLevel.materials);
-	renderer.setDynamicMeshes(mLevel.meshes);
+	DynArray<ConstMeshView> meshViews;
+	for (const auto& mesh : mLevel.meshes) meshViews.add(mesh);
+	renderer.setDynamicMeshes(meshViews);
 
 	// Create RenderEntitites to render
 	mEntities.create(mLevel.meshes.size());

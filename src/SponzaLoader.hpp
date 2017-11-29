@@ -11,7 +11,7 @@
 
 #include <ph/rendering/Image.hpp>
 #include <ph/rendering/Material.h>
-#include <ph/rendering/Mesh.h>
+#include <ph/rendering/Mesh.hpp>
 #include <ph/rendering/Vertex.h>
 
 namespace ph {
