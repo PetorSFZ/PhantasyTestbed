@@ -142,18 +142,18 @@ add_subdirectory(
 
 # Renderers, different depending on target platform
 if(EMSCRIPTEN)
-	# WebGL renderer when building for emscripten
-	set(PH_RENDERER_WEB_GL_STATIC true)
+	# CompatibleGL renderer when building for emscripten
+	set(PH_RENDERER_COMPATIBLE_GL_STATIC true)
 	add_subdirectory(
-		${ROOT_DIR}/Renderer-WebGL
-		${CMAKE_BINARY_DIR}/Renderer-WebGL
+		${ROOT_DIR}/Renderer-CompatibleGL
+		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
 	)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-	# Static linked WebGL renderer for macOS
-	set(set(PH_RENDERER_WEB_GL_STATIC true) true)
+	# Static linked CompatibleGL renderer for macOS
+	set(PH_RENDERER_COMPATIBLE_GL_STATIC true)
 	add_subdirectory(
-		${ROOT_DIR}/Renderer-WebGL
-		${CMAKE_BINARY_DIR}/Renderer-WebGL
+		${ROOT_DIR}/Renderer-CompatibleGL
+		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
 	)
 else()
 	# ModernGL renderer when building for Windows
@@ -195,9 +195,9 @@ target_link_libraries(PhantasyTestbed
 )
 
 if(EMSCRIPTEN)
-	target_link_libraries(PhantasyTestbed ${PH_RENDERER_WEB_GL_LIBRARIES})
+	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-	target_link_libraries(PhantasyTestbed ${PH_RENDERER_WEB_GL_LIBRARIES})
+	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 else()
 	# Ensure the Modern-GL Renderer is built even though it is not explicitly linked to the exe
 	add_dependencies(PhantasyTestbed ${PH_RENDERER_MODERN_GL_LIBRARIES})
