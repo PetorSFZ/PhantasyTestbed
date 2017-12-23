@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-project("Phantasy Testbed")
+project("Phantasy Testbed" CXX)
 
 # Sets build type to release if no build type is specified in a single-configuration generator.
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
@@ -91,6 +91,20 @@ download_project(
 add_subdirectory(${sdl2_SOURCE_DIR})
 message("Finished acquiring SDL2")
 
+# stb libraries
+# ${STB_FOUND}, ${STB_INCLUDE_DIRS}
+message("Acquiring stb libraries")
+download_project(
+	PROJ                stb
+	PREFIX              externals
+	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-stb.git
+	GIT_TAG             02a690a8110f007ff2edbf4e9571cdd7bfc8e9cb
+	UPDATE_DISCONNECTED 1
+	QUIET
+)
+add_subdirectory(${stb_SOURCE_DIR})
+message("Finished acquiring stb libraries")
+
 # sfzCore
 # ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
 #message("Acquiring sfzCore")
@@ -181,6 +195,7 @@ add_executable(PhantasyTestbed ${SRC_FILES})
 
 target_include_directories(PhantasyTestbed PUBLIC
 	${SDL2_INCLUDE_DIRS}
+	${STB_INCLUDE_DIRS}
 	${SFZ_CORE_INCLUDE_DIRS}
 	${PH_SHARED_INTERFACE_INCLUDE_DIRS}
 	${PHANTASY_ENGINE_INCLUDE_DIRS}
