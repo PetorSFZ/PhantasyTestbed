@@ -105,6 +105,24 @@ download_project(
 add_subdirectory(${stb_SOURCE_DIR})
 message("Finished acquiring stb libraries")
 
+# dear imgui
+# ${IMGUI_FOUND}, ${IMGUI_INCLUDE_DIRS} and ${IMGUI_LIBRARIES}
+message("Acquiring dear imgui")
+download_project(
+	PROJ                imgui
+	PREFIX              externals
+	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-imgui.git
+	GIT_TAG             a0bc9dd7242c46bd75a52a260f45487611c8e69
+	UPDATE_DISCONNECTED 1
+	QUIET
+)
+add_subdirectory(${imgui_SOURCE_DIR})
+message("Finished acquiring dear imgui")
+#add_subdirectory(
+#	${ROOT_DIR}/Dependency-imgui
+#	${CMAKE_BINARY_DIR}/Dependency-imgui
+#)
+
 # sfzCore
 # ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
 #message("Acquiring sfzCore")
@@ -196,6 +214,7 @@ add_executable(PhantasyTestbed ${SRC_FILES})
 target_include_directories(PhantasyTestbed PUBLIC
 	${SDL2_INCLUDE_DIRS}
 	${STB_INCLUDE_DIRS}
+	${IMGUI_INCLUDE_DIRS}
 	${SFZ_CORE_INCLUDE_DIRS}
 	${PH_SHARED_INTERFACE_INCLUDE_DIRS}
 	${PHANTASY_ENGINE_INCLUDE_DIRS}
@@ -204,6 +223,7 @@ target_include_directories(PhantasyTestbed PUBLIC
 
 target_link_libraries(PhantasyTestbed
 	${SDL2_LIBRARIES}
+	${IMGUI_LIBRARIES}
 	${SFZ_CORE_LIBRARIES}
 	${PHANTASY_ENGINE_LIBRARIES}
 	${ASSIMP_LIBRARIES}
