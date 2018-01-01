@@ -112,7 +112,7 @@ download_project(
 	PROJ                imgui
 	PREFIX              externals
 	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-imgui.git
-	GIT_TAG             a0bc9dd7242c46bd75a52a260f45487611c8e69
+	GIT_TAG             de9a6b042eb76860a8e0e2198ae530518019b415
 	UPDATE_DISCONNECTED 1
 	QUIET
 )

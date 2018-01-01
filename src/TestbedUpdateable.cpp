@@ -1,5 +1,7 @@
 #include "TestbedUpdateable.hpp"
 
+#include <imgui.h>
+
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
 #include <sfz/util/IO.hpp>
@@ -355,6 +357,10 @@ void TestbedUpdateable::render(Renderer& renderer, const UpdateInfo& updateInfo)
 	renderer.beginFrame(mCam, mDynamicSphereLights);
 
 	renderer.render(mEntities.data(), mEntities.size());
+
+	ImGui::Begin("TestWindow");
+
+	ImGui::End();
 
 	renderer.finishFrame();
 }
