@@ -266,6 +266,18 @@ UpdateOp TestbedUpdateable::processInput(const UpdateInfo& updateInfo, const Use
 {
 	(void)updateInfo;
 
+	// Update Imgui
+	ImGuiIO& io = ImGui::GetIO();
+
+	int mx, my;
+    uint32_t mouseMask = SDL_GetMouseState(&mx, &my);
+	io.MousePos = ImVec2(float(mx), float(my));
+//	io.MousePos.x = input.rawMouse.position.x * width;
+
+	io.MouseDown[0] = input.rawMouse.leftButton != ButtonState::NOT_PRESSED;
+	io.MouseDown[1] = input.rawMouse.rightButton != ButtonState::NOT_PRESSED;
+	io.MouseDown[2] = input.rawMouse.middleButton != ButtonState::NOT_PRESSED;
+
 	// Update gamecontroller
 	updateEmulatedController(input.events, input.rawMouse);
 	uint32_t controllerIndex = 0;
