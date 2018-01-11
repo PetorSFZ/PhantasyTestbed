@@ -84,7 +84,7 @@ download_project(
 	PROJ                sdl2
 	PREFIX              externals
 	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-SDL2.git
-	GIT_TAG             4db8582803583c35d8377bc23795bfa0c0cbbc5f
+	GIT_TAG             976d736650aa591955783c3d46eb9bc44940a42e
 	UPDATE_DISCONNECTED 1
 	QUIET
 )
@@ -188,10 +188,10 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
 		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
 	)
 else()
-	# ModernGL renderer when building for Windows
+	# Dynamically linked CompatibleGL renderer for Windows
 	add_subdirectory(
-		${ROOT_DIR}/Renderer-ModernGL
-		${CMAKE_BINARY_DIR}/Renderer-ModernGL
+		${ROOT_DIR}/Renderer-CompatibleGL
+		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
 	)
 endif()
 
@@ -234,8 +234,8 @@ if(EMSCRIPTEN)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
 	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 else()
-	# Ensure the Modern-GL Renderer is built even though it is not explicitly linked to the exe
-	add_dependencies(PhantasyTestbed ${PH_RENDERER_MODERN_GL_LIBRARIES})
+	# Ensure the CompatibleGL Renderer is built even though it is not explicitly linked to the exe
+	add_dependencies(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 endif()
 
 # Copy runtime files

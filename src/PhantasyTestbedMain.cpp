@@ -22,9 +22,9 @@ static ph::InitOptions createInitOptions()
 	};
 
 #ifdef __EMSCRIPTEN__
-	options.rendererName = "Renderer-WebGL";
+	options.rendererName = "Renderer-CompatibleGL";
 #else
-	options.rendererName = "Renderer-ModernGL";
+	options.rendererName = "Renderer-CompatibleGL";
 #endif
 
 	return options;
