@@ -28,7 +28,7 @@ if(MSVC)
 	# /Od = "disables optimization, speeding compilation and simplifying debugging"
 	set(CMAKE_CXX_FLAGS_DEBUG "/Od /DEBUG")
 
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	# macOS flags
 	# -Wall -Wextra = Enable most warnings
 	# -std=c++14 = Enable C++14 support
@@ -88,7 +88,7 @@ download_project(
 	UPDATE_DISCONNECTED 1
 	QUIET
 )
-add_subdirectory(${sdl2_SOURCE_DIR})
+add_subdirectory(${sdl2_SOURCE_DIR} ${CMAKE_BINARY_DIR}/sdl2)
 message("Finished acquiring SDL2")
 
 # stb libraries
@@ -102,7 +102,7 @@ download_project(
 	UPDATE_DISCONNECTED 1
 	QUIET
 )
-add_subdirectory(${stb_SOURCE_DIR})
+add_subdirectory(${stb_SOURCE_DIR} ${CMAKE_BINARY_DIR}/stb)
 message("Finished acquiring stb libraries")
 
 # dear imgui
@@ -116,7 +116,7 @@ download_project(
 	UPDATE_DISCONNECTED 1
 	QUIET
 )
-add_subdirectory(${imgui_SOURCE_DIR})
+add_subdirectory(${imgui_SOURCE_DIR} ${CMAKE_BINARY_DIR}/imgui)
 message("Finished acquiring dear imgui")
 #add_subdirectory(
 #	${ROOT_DIR}/Dependency-imgui

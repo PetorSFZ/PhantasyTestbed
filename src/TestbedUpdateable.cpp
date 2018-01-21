@@ -275,8 +275,6 @@ UpdateOp TestbedUpdateable::processInput(
 	vec2 imguiDims = renderer.imguiWindowDimensions();
 	io.DisplaySize.x = imguiDims.x;
 	io.DisplaySize.y = imguiDims.y;
-	io.DisplayFramebufferScale.x = 1.0f;
-	io.DisplayFramebufferScale.y = 1.0f;
 
 	sdl::Mouse imguiMouse = input.rawMouse.scaleMouse(imguiDims * 0.5f, imguiDims);
 	io.MousePos.x = imguiMouse.position.x;
