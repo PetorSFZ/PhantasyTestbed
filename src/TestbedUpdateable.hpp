@@ -3,6 +3,7 @@
 #include <sfz/containers/DynArray.hpp>
 #include <ph/game_loop/GameLoopUpdateable.hpp>
 #include <ph/rendering/CameraData.h>
+#include <ph/rendering/ImguiRenderingData.h>
 
 #include "SponzaLoader.hpp"
 
@@ -37,9 +38,12 @@ public:
 	// --------------------------------------------------------------------------------------------
 
 	void initialize(Renderer& renderer) override final;
-	UpdateOp processInput(const UpdateInfo& updateInfo, const UserInput& input) override final;
+	UpdateOp processInput(
+		const UserInput& input,
+		const UpdateInfo& updateInfo,
+		Renderer& renderer) override final;
 	UpdateOp updateTick(const UpdateInfo& updateInfo) override final;
-	void render(Renderer& renderer, const UpdateInfo& updateInfo) override final;
+	void render(const UpdateInfo& updateInfo, Renderer& renderer) override final;
 
 private:
 	// Private structs
@@ -78,4 +82,9 @@ private:
 	DynArray<ph::SphereLight> mDynamicSphereLights;
 	ph::Level mLevel;
 	DynArray<ph::RenderEntity> mEntities;
+	
+	// Imgui
+	DynArray<ph::ImguiVertex> mImguiVertices;
+	DynArray<uint32_t> mImguiIndices;
+	DynArray<ph::ImguiCommand> mImguiCommands;
 };

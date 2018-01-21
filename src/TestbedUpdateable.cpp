@@ -9,6 +9,7 @@
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/utils/Logging.hpp>
 #include <ph/rendering/Image.hpp>
+#include <ph/rendering/ImguiSupport.hpp>
 #include <ph/rendering/Renderer.hpp>
 
 using namespace sfz;
@@ -262,21 +263,28 @@ void TestbedUpdateable::initialize(Renderer& renderer)
 	}
 }
 
-UpdateOp TestbedUpdateable::processInput(const UpdateInfo& updateInfo, const UserInput& input)
+UpdateOp TestbedUpdateable::processInput(
+	const UserInput& input,
+	const UpdateInfo& updateInfo,
+	Renderer& renderer)
 {
 	(void)updateInfo;
 
 	// Update Imgui
 	ImGuiIO& io = ImGui::GetIO();
+	vec2 imguiDims = renderer.imguiWindowDimensions();
+	io.DisplaySize.x = imguiDims.x;
+	io.DisplaySize.y = imguiDims.y;
+	io.DisplayFramebufferScale.x = 1.0f;
+	io.DisplayFramebufferScale.y = 1.0f;
 
-	int mx, my;
-    uint32_t mouseMask = SDL_GetMouseState(&mx, &my);
-	io.MousePos = ImVec2(float(mx), float(my));
-//	io.MousePos.x = input.rawMouse.position.x * width;
+	sdl::Mouse imguiMouse = input.rawMouse.scaleMouse(imguiDims * 0.5f, imguiDims);
+	io.MousePos.x = imguiMouse.position.x;
+	io.MousePos.y = imguiDims.y - imguiMouse.position.y;
 
-	io.MouseDown[0] = input.rawMouse.leftButton != ButtonState::NOT_PRESSED;
-	io.MouseDown[1] = input.rawMouse.rightButton != ButtonState::NOT_PRESSED;
-	io.MouseDown[2] = input.rawMouse.middleButton != ButtonState::NOT_PRESSED;
+	io.MouseDown[0] = imguiMouse.leftButton != ButtonState::NOT_PRESSED;
+	io.MouseDown[1] = imguiMouse.rightButton != ButtonState::NOT_PRESSED;
+	io.MouseDown[2] = imguiMouse.middleButton != ButtonState::NOT_PRESSED;
 
 	// Update gamecontroller
 	updateEmulatedController(input.events, input.rawMouse);
@@ -362,7 +370,7 @@ UpdateOp TestbedUpdateable::updateTick(const UpdateInfo& updateInfo)
 	return UpdateOp::NO_OP();
 }
 
-void TestbedUpdateable::render(Renderer& renderer, const UpdateInfo& updateInfo)
+void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 {
 	(void)updateInfo;
 
@@ -370,10 +378,23 @@ void TestbedUpdateable::render(Renderer& renderer, const UpdateInfo& updateInfo)
 
 	renderer.render(mEntities.data(), mEntities.size());
 
-	ImGui::Begin("TestWindow");
 
+	// Start of Imgui commands
+	ImGui::NewFrame();
+
+	ImGui::ShowTestWindow();
+
+	ImGui::Begin("Very long time testing window");
+	ImGui::Button("Button");
 	ImGui::End();
 
+
+	// Render Imgui
+	ImGui::Render();
+	convertImguiDrawData(mImguiVertices, mImguiIndices, mImguiCommands);
+	renderer.renderImgui(mImguiVertices, mImguiIndices, mImguiCommands);
+	
+	// Finish rendering frame
 	renderer.finishFrame();
 }
 
@@ -384,7 +405,7 @@ void TestbedUpdateable::setDir(vec3 direction, vec3 up) noexcept
 {
 	mCam.dir = normalize(direction);
 	mCam.up = normalize(up - dot(up, mCam.dir) * mCam.dir);
-	sfz_assert_debug(approxEqual(dot(mCam.dir, mCam.up), 0.0f));
+	//sfz_assert_debug(approxEqual(dot(mCam.dir, mCam.up), 0.0f));
 }
 
 void TestbedUpdateable::updateEmulatedController(
