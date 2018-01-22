@@ -270,25 +270,14 @@ UpdateOp TestbedUpdateable::processInput(
 {
 	(void)updateInfo;
 
-	// Update Imgui
-	ImGuiIO& io = ImGui::GetIO();
-	vec2 imguiDims = renderer.imguiWindowDimensions();
-	io.DisplaySize.x = imguiDims.x;
-	io.DisplaySize.y = imguiDims.y;
-
-	sdl::Mouse imguiMouse = input.rawMouse.scaleMouse(imguiDims * 0.5f, imguiDims);
-	io.MousePos.x = imguiMouse.position.x;
-	io.MousePos.y = imguiDims.y - imguiMouse.position.y;
-
-	io.MouseDown[0] = imguiMouse.leftButton != ButtonState::NOT_PRESSED;
-	io.MouseDown[1] = imguiMouse.rightButton != ButtonState::NOT_PRESSED;
-	io.MouseDown[2] = imguiMouse.middleButton != ButtonState::NOT_PRESSED;
-
 	// Update gamecontroller
 	updateEmulatedController(input.events, input.rawMouse);
 	uint32_t controllerIndex = 0;
 	const GameController* controller = input.controllers.get(controllerIndex);
 	mCtrl = (controller != nullptr) ? controller->state() : mEmulatedController.state;
+
+	// Update imgui
+	updateImgui(renderer, &input.rawMouse, &input.events, &mCtrl);
 
 	return UpdateOp::NO_OP();
 }
@@ -382,10 +371,9 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 
 	ImGui::ShowTestWindow();
 
-	ImGui::Begin("Very long time testing window");
+	/*ImGui::Begin("Very long time testing window");
 	ImGui::Button("Button");
-	ImGui::End();
-
+	ImGui::End();*/
 
 	// Render Imgui
 	ImGui::Render();
