@@ -365,15 +365,41 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 
 	renderer.render(mEntities.data(), mEntities.size());
 
-
+	// Get Global Config sections
+	GlobalConfig& cfg = GlobalConfig::instance();
+	mCfgSections.clear();
+	cfg.getSections(mCfgSections);
+	
 	// Start of Imgui commands
 	ImGui::NewFrame();
 
 	ImGui::ShowTestWindow();
 
-	/*ImGui::Begin("Very long time testing window");
-	ImGui::Button("Button");
-	ImGui::End();*/
+	// Global Config Window
+	ImGui::Begin("Config");
+	//ImGui::SetWindowSize("Config", ImVec2(250.0f, 600.0f));
+	for (auto& sectionKey : mCfgSections) {
+
+		// Get settings from Global Config
+		mCfgSectionSettings.clear();
+		cfg.getSectionSettings(sectionKey.str, mCfgSectionSettings);
+
+		// Skip if header is closed
+		if (!ImGui::CollapsingHeader(sectionKey.str)) continue;
+
+		for (Setting* setting : mCfgSectionSettings) {
+			switch (setting->type()) {
+			case VALUE_TYPE_INT:
+				ImGui::InputInt(setting->key().str, &setting->value.i.value);
+				break;
+			case VALUE_TYPE_FLOAT:
+				ImGui::InputFloat(setting->key().str, &setting->value.f.value);
+				break;
+			}
+		}
+		
+	}
+	ImGui::End();
 
 	// Render Imgui
 	ImGui::Render();

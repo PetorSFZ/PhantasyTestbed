@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sfz/containers/DynArray.hpp>
+#include <ph/config/GlobalConfig.hpp>
 #include <ph/game_loop/GameLoopUpdateable.hpp>
 #include <ph/rendering/CameraData.h>
 #include <ph/rendering/ImguiRenderingData.h>
@@ -87,4 +88,8 @@ private:
 	DynArray<ph::ImguiVertex> mImguiVertices;
 	DynArray<uint32_t> mImguiIndices;
 	DynArray<ph::ImguiCommand> mImguiCommands;
+
+	// Global Config
+	DynArray<sfz::StackString64> mCfgSections;
+	DynArray<ph::Setting*> mCfgSectionSettings;
 };
