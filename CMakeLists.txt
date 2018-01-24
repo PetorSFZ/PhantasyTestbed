@@ -28,18 +28,6 @@ if(MSVC)
 	# /Od = "disables optimization, speeding compilation and simplifying debugging"
 	set(CMAKE_CXX_FLAGS_DEBUG "/Od /DEBUG")
 
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-	# macOS flags
-	# -Wall -Wextra = Enable most warnings
-	# -std=c++14 = Enable C++14 support
-	# -march=sandybridge = Require at least a Sandy Bridge Intel CPU to run code
-	# -fno-strict-aliasing = Disable strict aliasing optimizations
-	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -march=sandybridge -fno-strict-aliasing -DPH_STATIC_LINK_RENDERER")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-
 elseif(EMSCRIPTEN)
 	# Emscripten flags
 	# -Wall -Wextra = Enable most warnings
@@ -51,6 +39,18 @@ elseif(EMSCRIPTEN)
 	# --preload-file resources = Load "resources" directory into generated javascript
 	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
 	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -DPH_STATIC_LINK_RENDERER --preload-file resources")
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
+	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	# macOS flags
+	# -Wall -Wextra = Enable most warnings
+	# -std=c++14 = Enable C++14 support
+	# -march=sandybridge = Require at least a Sandy Bridge Intel CPU to run code
+	# -fno-strict-aliasing = Disable strict aliasing optimizations
+	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -march=sandybridge -fno-strict-aliasing -DPH_STATIC_LINK_RENDERER")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")

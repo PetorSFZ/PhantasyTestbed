@@ -274,10 +274,11 @@ UpdateOp TestbedUpdateable::processInput(
 	updateEmulatedController(input.events, input.rawMouse);
 	uint32_t controllerIndex = 0;
 	const GameController* controller = input.controllers.get(controllerIndex);
-	mCtrl = (controller != nullptr) ? controller->state() : mEmulatedController.state;
+	bool emulatedController = controller == nullptr;
+	mCtrl = (emulatedController) ? mEmulatedController.state : controller->state();
 
 	// Update imgui
-	updateImgui(renderer, &input.rawMouse, &input.events, &mCtrl);
+	updateImgui(renderer, &input.rawMouse, &input.events, emulatedController ? nullptr : &mCtrl);
 
 	return UpdateOp::NO_OP();
 }
@@ -369,7 +370,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 	GlobalConfig& cfg = GlobalConfig::instance();
 	mCfgSections.clear();
 	cfg.getSections(mCfgSections);
-	
+
 	// Start of Imgui commands
 	ImGui::NewFrame();
 
@@ -397,7 +398,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 				break;
 			}
 		}
-		
+
 	}
 	ImGui::End();
 
@@ -405,7 +406,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 	ImGui::Render();
 	convertImguiDrawData(mImguiVertices, mImguiIndices, mImguiCommands);
 	renderer.renderImgui(mImguiVertices, mImguiIndices, mImguiCommands);
-	
+
 	// Finish rendering frame
 	renderer.finishFrame();
 }
