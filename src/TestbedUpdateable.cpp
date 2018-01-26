@@ -391,7 +391,15 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 		for (Setting* setting : mCfgSectionSettings) {
 			switch (setting->type()) {
 			case VALUE_TYPE_INT:
-				ImGui::InputInt(setting->key().str, &setting->value.i.value);
+				if (setting->isBoolValue()) {
+					bool b = setting->boolValue();
+					if (ImGui::Checkbox(setting->key().str, &b)) {
+						setting->setBool(b);
+					}
+				}
+				else {
+					ImGui::InputInt(setting->key().str, &setting->value.i.value);
+				}
 				break;
 			case VALUE_TYPE_FLOAT:
 				ImGui::InputFloat(setting->key().str, &setting->value.f.value);
