@@ -390,19 +390,29 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 
 		for (Setting* setting : mCfgSectionSettings) {
 			switch (setting->type()) {
-			case VALUE_TYPE_INT:
-				if (setting->isBoolValue()) {
+			case ValueType::INT:
+				{
+					int32_t i = setting->intValue();
+					if (ImGui::InputInt(setting->key().str, &i, setting->value().i.bounds.step)) {
+						setting->setInt(i);
+					}
+				}
+				break;
+			case ValueType::FLOAT:
+				{
+					float f = setting->floatValue();
+					if (ImGui::InputFloat(setting->key().str, &f)) {
+						setting->setFloat(f);
+					}
+				}
+				break;
+			case ValueType::BOOL:
+				{
 					bool b = setting->boolValue();
 					if (ImGui::Checkbox(setting->key().str, &b)) {
 						setting->setBool(b);
 					}
 				}
-				else {
-					ImGui::InputInt(setting->key().str, &setting->value.i.value);
-				}
-				break;
-			case VALUE_TYPE_FLOAT:
-				ImGui::InputFloat(setting->key().str, &setting->value.f.value);
 				break;
 			}
 		}
