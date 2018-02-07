@@ -389,6 +389,15 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 		if (!ImGui::CollapsingHeader(sectionKey.str)) continue;
 
 		for (Setting* setting : mCfgSectionSettings) {
+
+			// Write to file checkbox
+			bool writeToFile = setting->value().writeToFile;
+			if (ImGui::Checkbox("", &writeToFile)) {
+				setting->setWriteToFile(writeToFile);
+			}
+			ImGui::SameLine();
+
+			// Value input
 			switch (setting->type()) {
 			case ValueType::INT:
 				{
