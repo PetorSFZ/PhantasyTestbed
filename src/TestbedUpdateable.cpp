@@ -350,7 +350,7 @@ UpdateOp TestbedUpdateable::updateTick(const UpdateInfo& updateInfo)
 
 	// Menu buttons
 	if (mCtrl.back == ButtonState::UP) {
-		return UpdateOp::QUIT();
+		//return UpdateOp::QUIT();
 	}
 
 	setDir(mCam.dir, vec3(0.0f, 1.0f, 0.0f));
