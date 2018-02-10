@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sfz/containers/DynArray.hpp>
+#include <sfz/util/FrametimeStats.hpp>
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/game_loop/GameLoopUpdateable.hpp>
 #include <ph/rendering/CameraData.h>
@@ -16,6 +17,7 @@ using ph::UpdateOp;
 using ph::UpdateInfo;
 using ph::UserInput;
 using sfz::DynArray;
+using sfz::FrametimeStats;
 using ph::sdl::ButtonState;
 using ph::sdl::Mouse;
 using sfz::vec3;
@@ -83,7 +85,10 @@ private:
 	DynArray<ph::SphereLight> mDynamicSphereLights;
 	ph::Level mLevel;
 	DynArray<ph::RenderEntity> mEntities;
-	
+
+	FrametimeStats mStats = FrametimeStats(480);
+	int mStatsWarmup = 0;
+
 	// Imgui
 	DynArray<ph::ImguiVertex> mImguiVertices;
 	DynArray<uint32_t> mImguiIndices;

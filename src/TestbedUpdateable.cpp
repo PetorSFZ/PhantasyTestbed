@@ -374,6 +374,25 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 	// Start of Imgui commands
 	ImGui::NewFrame();
 
+	// Performance window
+	if (mStatsWarmup >= 8) mStats.addSample(updateInfo.iterationDeltaSeconds);
+	mStatsWarmup++;
+	vec2 histogramDims = vec2(mStats.maxNumSamples() * 2.0f, 120.0f);
+	ImGui::SetNextWindowSize(histogramDims + vec2(17.0f, 50.0f));
+	ImGuiWindowFlags performanceWindowFlags = 0;
+	//performanceWindowFlags |= ImGuiWindowFlags_NoTitleBar;
+	performanceWindowFlags |= ImGuiWindowFlags_NoScrollbar;
+	//performanceWindowFlags |= ImGuiWindowFlags_NoMove;
+	performanceWindowFlags |= ImGuiWindowFlags_NoResize;
+	performanceWindowFlags |= ImGuiWindowFlags_NoCollapse;
+	performanceWindowFlags |= ImGuiWindowFlags_NoNav;
+	ImGui::Begin("Performance", nullptr, performanceWindowFlags);
+	ImGui::Text(mStats.toString());
+	ImGui::PlotLines("Frametimes", mStats.samples().data(), mStats.samples().size(), 0, nullptr,
+		sfz::min(mStats.min(), 0.012f), sfz::max(mStats.max(), 0.020f), histogramDims);
+	ImGui::End();
+
+	// Demo window
 	ImGui::ShowDemoWindow();
 
 	// Global Config Window
@@ -410,7 +429,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 			case ValueType::FLOAT:
 				{
 					float f = setting->floatValue();
-					if (ImGui::InputFloat(setting->key().str, &f)) {
+					if (ImGui::InputFloat(setting->key().str, &f, 0.25f)) {
 						setting->setFloat(f);
 					}
 				}
