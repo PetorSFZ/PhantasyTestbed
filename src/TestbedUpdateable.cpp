@@ -374,7 +374,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 	// Start of Imgui commands
 	ImGui::NewFrame();
 
-	ImGui::ShowTestWindow();
+	ImGui::ShowDemoWindow();
 
 	// Global Config Window
 	ImGui::Begin("Config");

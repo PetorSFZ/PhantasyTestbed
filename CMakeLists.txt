@@ -105,24 +105,6 @@ download_project(
 add_subdirectory(${stb_SOURCE_DIR} ${CMAKE_BINARY_DIR}/stb)
 message("Finished acquiring stb libraries")
 
-# dear imgui
-# ${IMGUI_FOUND}, ${IMGUI_INCLUDE_DIRS} and ${IMGUI_LIBRARIES}
-message("Acquiring dear imgui")
-download_project(
-	PROJ                imgui
-	PREFIX              externals
-	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-imgui.git
-	GIT_TAG             de9a6b042eb76860a8e0e2198ae530518019b415
-	UPDATE_DISCONNECTED 1
-	QUIET
-)
-add_subdirectory(${imgui_SOURCE_DIR} ${CMAKE_BINARY_DIR}/imgui)
-message("Finished acquiring dear imgui")
-#add_subdirectory(
-#	${ROOT_DIR}/Dependency-imgui
-#	${CMAKE_BINARY_DIR}/Dependency-imgui
-#)
-
 # sfzCore
 # ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
 #message("Acquiring sfzCore")
@@ -140,6 +122,24 @@ add_subdirectory(
 	${ROOT_DIR}/sfzCore
 	${CMAKE_BINARY_DIR}/sfzCore
 )
+
+# dear imgui
+# ${IMGUI_FOUND}, ${IMGUI_INCLUDE_DIRS} and ${IMGUI_LIBRARIES}
+message("Acquiring dear imgui")
+download_project(
+	PROJ                imgui
+	PREFIX              externals
+	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-imgui.git
+	GIT_TAG             82469122eadf02213f351b943f78e390e4c9269e
+	UPDATE_DISCONNECTED 1
+	QUIET
+)
+add_subdirectory(${imgui_SOURCE_DIR} ${CMAKE_BINARY_DIR}/imgui)
+message("Finished acquiring dear imgui")
+#add_subdirectory(
+#	${ROOT_DIR}/Dependency-imgui
+#	${CMAKE_BINARY_DIR}/Dependency-imgui
+#)
 
 # sfzGL
 add_subdirectory(
