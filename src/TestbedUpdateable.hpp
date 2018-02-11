@@ -95,6 +95,6 @@ private:
 	DynArray<ph::ImguiCommand> mImguiCommands;
 
 	// Global Config
-	DynArray<sfz::StackString64> mCfgSections;
+	DynArray<sfz::StackString32> mCfgSections;
 	DynArray<ph::Setting*> mCfgSectionSettings;
 };

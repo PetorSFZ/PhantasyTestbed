@@ -396,8 +396,12 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 	ImGui::ShowDemoWindow();
 
 	// Global Config Window
-	ImGui::Begin("Config");
-	//ImGui::SetWindowSize("Config", ImVec2(250.0f, 600.0f));
+	ImGuiWindowFlags configWindowFlags = 0;
+	//configWindowFlags |= ImGuiWindowFlags_NoMove;
+	//configWindowFlags |= ImGuiWindowFlags_NoResize;
+	//configWindowFlags |= ImGuiWindowFlags_NoCollapse;
+	ImGui::SetNextWindowSize(vec2(550.0f, 0.0f));
+	ImGui::Begin("Config", nullptr, configWindowFlags);
 	for (auto& sectionKey : mCfgSections) {
 
 		// Get settings from Global Config
@@ -407,21 +411,47 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 		// Skip if header is closed
 		if (!ImGui::CollapsingHeader(sectionKey.str)) continue;
 
+		// Start columns
+		StackString256 tmpStr;
+		tmpStr.printf("%s___column___", sectionKey.str);
+		ImGui::Columns(4, tmpStr.str);
+		ImGui::Separator();
+
+		// Set columns widths
+		ImGui::SetColumnWidth(0, 40.0f);
+		ImGui::SetColumnWidth(1, 210.0f);
+		ImGui::SetColumnWidth(2, 150.0f);
+		ImGui::SetColumnWidth(3, 150.0f);
+
+		// Column headers
+		ImGui::Text("Save"); ImGui::NextColumn();
+		ImGui::Text("Setting Key"); ImGui::NextColumn();
+		ImGui::Text("Value Input"); ImGui::NextColumn();
+		ImGui::Text("Alternate Input"); ImGui::NextColumn();
+
+		ImGui::Separator();
+
 		for (Setting* setting : mCfgSectionSettings) {
 
 			// Write to file checkbox
+			tmpStr.printf("          %s___writeToFile___", setting->key().str);
 			bool writeToFile = setting->value().writeToFile;
-			if (ImGui::Checkbox("", &writeToFile)) {
+			if (ImGui::Checkbox(tmpStr.str, &writeToFile)) {
 				setting->setWriteToFile(writeToFile);
 			}
-			ImGui::SameLine();
+			ImGui::NextColumn();
 
-			// Value input
+			// Key text
+			ImGui::Text(setting->key().str);
+			ImGui::NextColumn();
+
+			// Value input field
+			tmpStr.printf("                         %s___valueInput___", setting->key().str);
 			switch (setting->type()) {
 			case ValueType::INT:
 				{
 					int32_t i = setting->intValue();
-					if (ImGui::InputInt(setting->key().str, &i, setting->value().i.bounds.step)) {
+					if (ImGui::InputInt(tmpStr.str, &i, setting->value().i.bounds.step)) {
 						setting->setInt(i);
 					}
 				}
@@ -429,7 +459,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 			case ValueType::FLOAT:
 				{
 					float f = setting->floatValue();
-					if (ImGui::InputFloat(setting->key().str, &f, 0.25f)) {
+					if (ImGui::InputFloat(tmpStr.str, &f, 0.25f)) {
 						setting->setFloat(f);
 					}
 				}
@@ -437,14 +467,50 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 			case ValueType::BOOL:
 				{
 					bool b = setting->boolValue();
-					if (ImGui::Checkbox(setting->key().str, &b)) {
+					if (ImGui::Checkbox(tmpStr.str, &b)) {
 						setting->setBool(b);
 					}
 				}
 				break;
 			}
+			ImGui::NextColumn();
+
+			// Alternate value input field
+			tmpStr.printf("                         %s___altValueInput___", setting->key().str);
+			switch (setting->type()) {
+			case ValueType::INT:
+				{
+					const IntBounds& bounds = setting->value().i.bounds;
+					if (bounds.minValue != INT32_MIN || bounds.maxValue != INT32_MAX) {
+						int32_t i = setting->intValue();
+						if (ImGui::SliderInt(tmpStr.str, &i, bounds.minValue, bounds.maxValue)) {
+							setting->setInt(i);
+						}
+					}
+				}
+				break;
+			case ValueType::FLOAT:
+				{
+					const FloatBounds& bounds = setting->value().f.bounds;
+					if (bounds.minValue != FLT_MIN || bounds.maxValue != FLT_MAX) {
+						float f = setting->floatValue();
+						if (ImGui::SliderFloat(tmpStr.str, &f, bounds.minValue, bounds.maxValue)) {
+							setting->setFloat(f);
+						}
+					}
+				}
+				break;
+			default:
+				// Do nothing
+				break;
+			}
+			ImGui::NextColumn();
+
+			ImGui::Separator();
 		}
 
+		// Return to 1 column
+		ImGui::Columns(1);
 	}
 	ImGui::End();
 
