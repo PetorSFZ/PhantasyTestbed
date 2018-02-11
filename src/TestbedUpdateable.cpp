@@ -377,7 +377,7 @@ void TestbedUpdateable::render(const UpdateInfo& updateInfo, Renderer& renderer)
 	// Performance window
 	if (mStatsWarmup >= 8) mStats.addSample(updateInfo.iterationDeltaSeconds);
 	mStatsWarmup++;
-	vec2 histogramDims = vec2(mStats.maxNumSamples() * 2.0f, 120.0f);
+	vec2 histogramDims = vec2(mStats.maxNumSamples() * 1.25f, 80.0f);
 	ImGui::SetNextWindowSize(histogramDims + vec2(17.0f, 50.0f));
 	ImGuiWindowFlags performanceWindowFlags = 0;
 	//performanceWindowFlags |= ImGuiWindowFlags_NoTitleBar;
