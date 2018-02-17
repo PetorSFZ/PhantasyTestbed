@@ -202,11 +202,12 @@ add_subdirectory(${EXTERNALS_DIR}/assimp)
 # ------------------------------------------------------------------------------------------------
 
 set(SRC_FILES
+	${INCLUDE_DIR}/Cube.hpp
 		${SRC_DIR}/PhantasyTestbedMain.cpp
 	${INCLUDE_DIR}/SponzaLoader.hpp
 		${SRC_DIR}/SponzaLoader.cpp
-	${INCLUDE_DIR}/TestbedUpdateable.hpp
-		${SRC_DIR}/TestbedUpdateable.cpp
+	${INCLUDE_DIR}/TestbedLogic.hpp
+		${SRC_DIR}/TestbedLogic.cpp
 )
 
 add_executable(PhantasyTestbed ${SRC_FILES})

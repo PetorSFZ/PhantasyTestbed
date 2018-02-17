@@ -1,9 +1,10 @@
 #include <ph/PhantasyEngineMain.hpp>
+#include <ph/game_loop/DefaultGameUpdateable.hpp>
 #include <ph/game_loop/GameLoopUpdateable.hpp>
 
 #include <sfz/memory/SmartPointers.hpp>
 
-#include "TestbedUpdateable.hpp"
+#include "TestbedLogic.hpp"
 
 static ph::InitOptions createInitOptions()
 {
@@ -18,7 +19,8 @@ static ph::InitOptions createInitOptions()
 #endif
 
 	options.createInitialUpdateable = []() -> sfz::UniquePtr<ph::GameLoopUpdateable> {
-		return sfz::makeUniqueDefault<TestbedUpdateable>();
+		Allocator* allocator = sfz::getDefaultAllocator();
+		return ph::createDefaultGameUpdateable(allocator, createTestbedLogic(allocator));
 	};
 
 #ifdef __EMSCRIPTEN__
