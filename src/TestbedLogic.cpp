@@ -116,8 +116,6 @@ public:
 		const UpdateInfo& updateInfo,
 		Renderer& renderer) override final
 	{
-		printf("Hello world!\n");
-
 		// Update gamecontroller
 		updateEmulatedController(input.events, input.rawMouse);
 		uint32_t controllerIndex = 0;
