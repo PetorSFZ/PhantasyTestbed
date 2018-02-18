@@ -116,6 +116,12 @@ public:
 		const UpdateInfo& updateInfo,
 		Renderer& renderer) override final
 	{
+		for (const SDL_Event& event : input.events) {
+			if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE) {
+				return UpdateOp::QUIT();
+			}
+		}
+
 		// Update gamecontroller
 		updateEmulatedController(input.events, input.rawMouse);
 		uint32_t controllerIndex = 0;
