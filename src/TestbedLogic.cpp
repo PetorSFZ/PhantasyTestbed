@@ -5,6 +5,7 @@
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
 
+#include <ph/config/GlobalConfig.hpp>
 #include <ph/sdl/ButtonState.hpp>
 
 #include "SponzaLoader.hpp"
@@ -50,6 +51,8 @@ public:
 
 	EmulatedGameController mEmulatedController;
 	ph::GameControllerState mCtrl;
+
+	Setting* mShowImguiDemo = nullptr;
 
 	// Overloaded methods from GameLogic
 	// --------------------------------------------------------------------------------------------
@@ -99,6 +102,9 @@ public:
 
 			state.dynamicSphereLights.add(tmp);
 		}
+
+		GlobalConfig& cfg = GlobalConfig::instance();
+		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
 	}
 
 	virtual ImguiControllers imguiController(const UserInput& input)
@@ -211,7 +217,7 @@ public:
 
 	void renderCustomImgui()
 	{
-		ImGui::ShowDemoWindow();
+		if (mShowImguiDemo->boolValue()) ImGui::ShowDemoWindow();
 	}
 
 	void onConsoleActivated()
