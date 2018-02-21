@@ -6,6 +6,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <sfz/Logging.hpp>
 #include <sfz/containers/HashMap.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/strings/DynString.hpp>
@@ -181,7 +182,7 @@ Level loadStaticSceneSponza(
 	DynString path("", basePathLen + fileNameLen + 2);
 	path.printf("%s%s", basePath, fileName);
 	if (path.size() < 1) {
-		sfz::printErrorMessage("Failed to load model, empty path");
+		SFZ_ERROR("SponzaLoader", "Failed to load model, empty path");
 		return Level();
 	}
 
@@ -197,7 +198,7 @@ Level loadStaticSceneSponza(
 		}
 	}
 	if (realBasePath.size() == path.size()) {
-		sfz::printErrorMessage("Failed to find real base path, basePath=\"%s\", fileName=\"%s\"", basePath, fileName);
+		SFZ_ERROR("SponzaLoader", "Failed to find real base path, basePath=\"%s\", fileName=\"%s\"", basePath, fileName);
 		return Level();
 	}
 
@@ -205,7 +206,7 @@ Level loadStaticSceneSponza(
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path.str(), aiProcessPreset_TargetRealtime_Quality | aiProcess_FlipUVs);
 	if (scene == nullptr || scene->mFlags == AI_SCENE_FLAGS_INCOMPLETE || scene->mRootNode == nullptr) {
-		sfz::printErrorMessage("Failed to load model \"%s\", error: %s", fileName, importer.GetErrorString());
+		SFZ_ERROR("SponzaLoader", "Failed to load model \"%s\", error: %s", fileName, importer.GetErrorString());
 		return Level();
 	}
 
