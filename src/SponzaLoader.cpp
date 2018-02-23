@@ -12,8 +12,6 @@
 #include <sfz/strings/DynString.hpp>
 #include <sfz/strings/StringHashers.hpp>
 
-#include <ph/utils/Logging.hpp>
-
 namespace ph {
 
 using namespace sfz;
