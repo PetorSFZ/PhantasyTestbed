@@ -122,6 +122,10 @@ public:
 		const UpdateInfo& updateInfo,
 		Renderer& renderer) override final
 	{
+		(void) state;
+		(void) updateInfo;
+		(void) renderer;
+
 		for (const SDL_Event& event : input.events) {
 			if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE) {
 				return UpdateOp::QUIT();
@@ -232,7 +236,7 @@ public:
 
 	void onQuit(UpdateableState& state) override final
 	{
-
+		(void) state;
 	}
 
 private:
