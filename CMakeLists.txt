@@ -198,11 +198,17 @@ endif()
 # Assimp
 add_subdirectory(${EXTERNALS_DIR}/assimp)
 
+# tinygltf
+# ${TINYGLTF_FOUND}, ${TINYGLTF_INCLUDE_DIRS}
+add_subdirectory(${EXTERNALS_DIR}/tinygltf)
+
 # Executable
 # ------------------------------------------------------------------------------------------------
 
 set(SRC_FILES
 	${INCLUDE_DIR}/Cube.hpp
+	${INCLUDE_DIR}/GltfLoader.hpp
+		${SRC_DIR}/GltfLoader.cpp
 		${SRC_DIR}/PhantasyTestbedMain.cpp
 	${INCLUDE_DIR}/SponzaLoader.hpp
 		${SRC_DIR}/SponzaLoader.cpp
@@ -220,6 +226,7 @@ target_include_directories(PhantasyTestbed PUBLIC
 	${PH_SHARED_INTERFACE_INCLUDE_DIRS}
 	${PHANTASY_ENGINE_INCLUDE_DIRS}
 	${ASSIMP_INCLUDE_DIRS}
+	${TINYGLTF_INCLUDE_DIRS}
 )
 
 target_link_libraries(PhantasyTestbed

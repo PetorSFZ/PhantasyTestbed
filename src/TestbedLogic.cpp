@@ -2,13 +2,16 @@
 
 #include <imgui.h>
 
+#include <sfz/Logging.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
 
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/sdl/ButtonState.hpp>
 
+#include "Cube.hpp"
 #include "SponzaLoader.hpp"
+#include "GltfLoader.hpp"
 
 using namespace ph;
 using namespace sfz;
@@ -76,6 +79,28 @@ public:
 			entity.meshIndex = i;
 			state.renderEntities.add(entity);
 		}
+
+
+		// ----------------------------------------------------------------------------------------
+		// Temporary glTF test code
+
+		Material tmpMaterial;
+		tmpMaterial.albedo = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+		tmpMaterial.roughness = 1.0f;
+		uint32_t tmpMaterialIdx = renderer.addMaterial(tmpMaterial);
+
+		Mesh tmpMesh = loadMeshFromGltf("", "resources/Box.gltf", tmpMaterialIdx);
+		//Mesh tmpMesh = createCubeModel(getDefaultAllocator(), tmpMaterialIdx);
+		uint32_t tmpMeshIdx = renderer.addDynamicMesh(tmpMesh); // add mesh index
+		mat34 tmpTransform = mat34::identity();
+
+		ph::RenderEntity tmpEntity;
+		tmpEntity.meshIndex = tmpMeshIdx;
+		tmpEntity.transform = tmpTransform;
+		state.renderEntities.add(tmpEntity);
+
+		// ----------------------------------------------------------------------------------------
+
 
 		// Initialize camera
 		state.cam.pos = vec3(3.0f, 3.0f, 3.0f);
