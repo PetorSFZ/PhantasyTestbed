@@ -6,6 +6,9 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# Generate a "compile_commands.json" for VSCode and such when compiling with make
+set(CMAKE_EXPORT_COMPILE_COMMANDS true)
+
 # Compiler flags
 # ------------------------------------------------------------------------------------------------
 
