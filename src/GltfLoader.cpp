@@ -19,6 +19,30 @@
 
 namespace ph {
 
+using sfz::StackString320;
+
+static StackString320 calculateBasePath(const char* path) noexcept
+{
+	StackString320 str;
+	str.printf("%s", path);
+
+	// Go through path until the path separator is found
+	bool success = false;
+	for (uint32_t i = str.size() - 1; i > 0; i--) {
+		const char c = str.str[i - 1];
+		if (c == '\\' || c == '/') {
+			str.str[i] = '\0';
+			success = true;
+			break;
+		}
+	}
+
+	// If no path separator is found, assume we have no base path
+	if (!success) str.printf("");
+
+	return str;
+}
+
 enum class ComponentType : uint32_t {
 	INT8 = 5120,
 	UINT8 = 5121,
@@ -110,28 +134,9 @@ static DataAccess accessData(const tinygltf::Model& model, int32_t accessorIdx) 
 	return tmp;
 }
 
-static Mesh convertMesh(const tinygltf::Model& model, uint32_t tmpMatIdx) noexcept
+static bool extractAssets(
+	const char* basePath, const tinygltf::Model& model, LevelAssets& assets) noexcept
 {
-	Mesh meshOut;
-
-	/*const tinygltf::Scene& scene = model.scenes[model.defaultScene];
-
-	for (int nodeIdx : scene.nodes) {
-		const tinygltf::Node& node = model.nodes[nodeIdx];
-		int meshIdx = node.mesh;
-		const tinygltf::Mesh& mesh = model.meshes[meshIdx];
-
-		for (const tinygltf::Primitive& primitive : mesh.primitives) {
-
-			//const tinygltf::Material& material = model.materials[primitive.material];
-
-			//const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
-
-
-
-		}
-	}*/
-
 	// Really stupidly, we are just going to be looking at the first mesh.
 	const tinygltf::Mesh& mesh = model.meshes[0];
 
@@ -141,7 +146,7 @@ static Mesh convertMesh(const tinygltf::Model& model, uint32_t tmpMatIdx) noexce
 	// Mode can be:
 	// TINYGLTF_MODE_POINTS (0)
 	// TINYGLTF_MODE_LINE (1)
- 	// TINYGLTF_MODE_LINE_LOOP (2)
+	// TINYGLTF_MODE_LINE_LOOP (2)
 	// TINYGLTF_MODE_TRIANGLES (4)
 	// TINYGLTF_MODE_TRIANGLE_STRIP (5)
 	// TINYGLTF_MODE_TRIANGLE_FAN (6)
@@ -168,13 +173,14 @@ static Mesh convertMesh(const tinygltf::Model& model, uint32_t tmpMatIdx) noexce
 	// Create vertices from positions and normals
 	// TODO: Texcoords
 	sfz_assert_release(posAccess.numElements == normalAccess.numElements);
-	meshOut.vertices.create(posAccess.numElements);
+	Mesh tmpMesh;
+	tmpMesh.vertices.create(posAccess.numElements);
 	for (uint32_t i = 0; i < posAccess.numElements; i++) {
 		Vertex vertex;
 		vertex.pos = posAccess.at<vec3>(i);
 		vertex.normal = normalAccess.at<vec3>(i);
 		vertex.texcoord = vec2(0.0f);
-		meshOut.vertices.add(vertex);
+		tmpMesh.vertices.add(vertex);
 	}
 
 	// Create indicess
@@ -182,13 +188,13 @@ static Mesh convertMesh(const tinygltf::Model& model, uint32_t tmpMatIdx) noexce
 	sfz_assert_release(idxAccess.rawPtr != nullptr);
 	sfz_assert_release(idxAccess.compDims == ComponentDimensions::SCALAR);
 	if (idxAccess.compType == ComponentType::UINT32) {
-		meshOut.indices.create(idxAccess.numElements);
-		meshOut.indices.add(&idxAccess.at<uint32_t>(0), idxAccess.numElements);
+		tmpMesh.indices.create(idxAccess.numElements);
+		tmpMesh.indices.add(&idxAccess.at<uint32_t>(0), idxAccess.numElements);
 	}
 	else if (idxAccess.compType == ComponentType::UINT16) {
-		meshOut.indices.create(idxAccess.numElements);
+		tmpMesh.indices.create(idxAccess.numElements);
 		for (uint32_t i = 0; i < idxAccess.numElements; i++) {
-			meshOut.indices.add(uint32_t(idxAccess.at<uint16_t>(i)));
+			tmpMesh.indices.add(uint32_t(idxAccess.at<uint16_t>(i)));
 		}
 	}
 	else {
@@ -197,42 +203,43 @@ static Mesh convertMesh(const tinygltf::Model& model, uint32_t tmpMatIdx) noexce
 
 	// Create materialIndices
 	// TOOD: Currently only making them up and pointing to 0
-	meshOut.materialIndices.create(meshOut.vertices.size());
-	meshOut.materialIndices.addMany(meshOut.vertices.size(), tmpMatIdx);
+	tmpMesh.materialIndices.create(tmpMesh.vertices.size());
+	tmpMesh.materialIndices.addMany(tmpMesh.vertices.size(), 0);
 
-	return meshOut;
+	assets.meshes.add(std::move(tmpMesh));
+
+	return true;
 }
 
-Mesh loadMeshFromGltf(const char* basePath, const char* gltfPath, uint32_t tmpMatIdx) noexcept
+bool loadAssetsFromGltf(
+	const char* gltfPath,
+	LevelAssets& assets) noexcept
 {
-	// Append paths
-	sfz::StackString256 path;
-	path.printf("%s%s", basePath, gltfPath);
-	printf("%s\n", path.str);
+	StackString320 basePath = calculateBasePath(gltfPath);
 
 	// Read model from file
 	tinygltf::TinyGLTF loader;
 	tinygltf::Model model;
 	std::string error;
-	bool result = loader.LoadASCIIFromFile(&model, &error, path.str);
+	bool result = loader.LoadASCIIFromFile(&model, &error, gltfPath);
 
 	// Check error string
 	if (!error.empty()) {
-		SFZ_ERROR("tinygltf", "Error loading \"%s\": %s", path.str, error.c_str());
-		return Mesh();
+		SFZ_ERROR("tinygltf", "Error loading \"%s\": %s", gltfPath, error.c_str());
+		return false;
 	}
 
 	// Check return code
 	if (!result) {
-		SFZ_ERROR("tinygltf", "Error loading \"%s\"", path.str);
-		return Mesh();
+		SFZ_ERROR("tinygltf", "Error loading \"%s\"", gltfPath);
+		return false;
 	}
 
 	// Log that model was succesfully loaded
-	SFZ_INFO_NOISY("tinygltf", "Model \"%s\" loaded succesfully", path.str);
+	SFZ_INFO_NOISY("tinygltf", "Model \"%s\" loaded succesfully", gltfPath);
 
-	// Convert model to PhantasyEngine representation
-	return convertMesh(model, tmpMatIdx);
+	// Extract assets from results
+	return extractAssets(basePath.str, model, assets);
 }
 
 } // namespace ph

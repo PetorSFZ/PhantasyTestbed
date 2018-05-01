@@ -1,9 +1,13 @@
 #pragma once
 
-#include "ph/rendering/Mesh.hpp"
+#include "ph/rendering/LevelAssets.hpp"
 
 namespace ph {
 
-Mesh loadMeshFromGltf(const char* basePath, const char* gltfPath, uint32_t tmpMatIdx) noexcept;
+/// Loads all meshes, textures and materials from a .gltf file into the level assets.
+/// All scene graph information, relative positions and transformations are ignored.
+bool loadAssetsFromGltf(
+	const char* gltfPath,
+	LevelAssets& assets) noexcept;
 
 } // namespace ph

@@ -62,46 +62,46 @@ public:
 
 	void initialize(UpdateableState& state, Renderer& renderer) override final
 	{
+		// Add default material
+		Material defaultMaterial;
+		defaultMaterial.albedo = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+		defaultMaterial.roughness = 1.0f;
+		state.dynamicAssets.materials.add(defaultMaterial);
+
 		// Load sponza level
 		loadStaticSceneSponza(
-			"", "resources/sponzaPBR/sponzaPBR.obj", state.assets, mat44::scaling3(0.05f));
-		DynArray<ConstImageView> textureViews;
-		for (const auto& texture : state.assets.textures) textureViews.add(texture);
-		renderer.setTextures(textureViews);
-		renderer.setMaterials(state.assets.materials);
-		DynArray<ConstMeshView> meshViews;
-		for (const auto& mesh : state.assets.meshes) meshViews.add(mesh);
-		renderer.setDynamicMeshes(meshViews);
-
-		// Create RenderEntitites to render
-		state.renderEntities.create(state.assets.meshes.size());
-		for (uint32_t i = 0; i < state.assets.meshes.size(); i++) {
-			ph::RenderEntity entity;
-			entity.meshIndex = i;
-			state.renderEntities.add(entity);
-		}
-
-
+			"", "resources/sponzaPBR/sponzaPBR.obj", state.dynamicAssets, mat44::scaling3(0.05f));
+		
 		// ----------------------------------------------------------------------------------------
 		// Temporary glTF test code
 
-		Material tmpMaterial;
-		tmpMaterial.albedo = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-		tmpMaterial.roughness = 1.0f;
-		uint32_t tmpMaterialIdx = renderer.addMaterial(tmpMaterial);
+		//Mesh tmpMesh = loadMeshFromGltf("", "resources/Box.gltf", tmpMaterialIdx);
+		//Mesh tmpMesh = createCubeModel(getDefaultAllocator(), 0);
+		//state.dynamicAssets.meshes.add(tmpMesh);
 
-		Mesh tmpMesh = loadMeshFromGltf("", "resources/Box.gltf", tmpMaterialIdx);
-		//Mesh tmpMesh = createCubeModel(getDefaultAllocator(), tmpMaterialIdx);
-		uint32_t tmpMeshIdx = renderer.addDynamicMesh(tmpMesh); // add mesh index
-		mat34 tmpTransform = mat34::identity();
-
-		ph::RenderEntity tmpEntity;
-		tmpEntity.meshIndex = tmpMeshIdx;
-		tmpEntity.transform = tmpTransform;
-		state.renderEntities.add(tmpEntity);
+		if (!loadAssetsFromGltf("resources/Box.gltf", state.dynamicAssets)) {
+			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+		}
 
 		// ----------------------------------------------------------------------------------------
 
+		// Create RenderEntitites to render
+		state.renderEntities.create(state.dynamicAssets.meshes.size());
+		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
+			ph::RenderEntity entity;
+			entity.meshIndex = i;
+			entity.transform = mat34::identity();
+			state.renderEntities.add(entity);
+		}
+
+		// Uploaded dynamic level assets to renderer
+		DynArray<ConstImageView> textureViews;
+		for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
+		renderer.setTextures(textureViews);
+		renderer.setMaterials(state.dynamicAssets.materials);
+		DynArray<ConstMeshView> meshViews;
+		for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
+		renderer.setDynamicMeshes(meshViews);
 
 		// Initialize camera
 		state.cam.pos = vec3(3.0f, 3.0f, 3.0f);
