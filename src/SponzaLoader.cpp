@@ -6,11 +6,14 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <sfz/strings/StringHashers.hpp>
 #include <sfz/Logging.hpp>
 #include <sfz/containers/HashMap.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/strings/DynString.hpp>
-#include <sfz/strings/StringHashers.hpp>
+#include <sfz/strings/StackString.hpp>
+#include <sfz/containers/HashMap.hpp>
+
 
 namespace ph {
 
@@ -32,8 +35,14 @@ static vec3 toSFZ(const aiVector3D& v)
 	return vec3(v.x, v.y, v.z);
 }
 
-static void processNode(const char* basePath, Level& level,
-                        const aiScene* scene, aiNode* node, const mat4& modelMatrix, const mat4& normalMatrix) noexcept
+static void processNode(
+	const char* basePath,
+	LevelAssets& level,
+	HashMap<StackString256, uint32_t>& texMapping,
+	const aiScene* scene,
+	aiNode* node,
+	const mat4& modelMatrix,
+	const mat4& normalMatrix) noexcept
 {
 	aiString tmpPath;
 
@@ -79,11 +88,11 @@ static void processNode(const char* basePath, Level& level,
 			tmpPath.Clear();
 			mat->GetTexture(aiTextureType_DIFFUSE, 0, &tmpPath);
 
-			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
+			const uint32_t* indexPtr = texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
 				const uint32_t nextIndex = level.textures.size();
-				level.texMapping[tmpPath.C_Str()] = nextIndex;
-				indexPtr = level.texMapping.get(tmpPath.C_Str());
+				texMapping[tmpPath.C_Str()] = nextIndex;
+				indexPtr = texMapping.get(tmpPath.C_Str());
 
 				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
 			}
@@ -103,11 +112,11 @@ static void processNode(const char* basePath, Level& level,
 			tmpPath.Clear();
 			mat->GetTexture(aiTextureType_SHININESS, 0, &tmpPath);
 
-			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
+			const uint32_t* indexPtr = texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
 				const uint32_t nextIndex = level.textures.size();
-				level.texMapping[tmpPath.C_Str()] = nextIndex;
-				indexPtr = level.texMapping.get(tmpPath.C_Str());
+				texMapping[tmpPath.C_Str()] = nextIndex;
+				indexPtr = texMapping.get(tmpPath.C_Str());
 
 				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
 			}
@@ -126,11 +135,11 @@ static void processNode(const char* basePath, Level& level,
 			tmpPath.Clear();
 			mat->GetTexture(aiTextureType_AMBIENT, 0, &tmpPath);
 
-			const uint32_t* indexPtr = level.texMapping.get(tmpPath.C_Str());
+			const uint32_t* indexPtr = texMapping.get(tmpPath.C_Str());
 			if (indexPtr == nullptr) {
 				const uint32_t nextIndex = level.textures.size();
-				level.texMapping[tmpPath.C_Str()] = nextIndex;
-				indexPtr = level.texMapping.get(tmpPath.C_Str());
+				texMapping[tmpPath.C_Str()] = nextIndex;
+				indexPtr = texMapping.get(tmpPath.C_Str());
 
 				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
 			}
@@ -165,13 +174,14 @@ static void processNode(const char* basePath, Level& level,
 
 	// Process all children
 	for (uint32_t i = 0; i < node->mNumChildren; i++) {
-		processNode(basePath, level, scene, node->mChildren[i], modelMatrix, normalMatrix);
+		processNode(basePath, level, texMapping, scene, node->mChildren[i], modelMatrix, normalMatrix);
 	}
 }
 
-Level loadStaticSceneSponza(
+bool loadStaticSceneSponza(
 	const char* basePath,
 	const char* fileName,
+	LevelAssets& assets,
 	const mat4& modelMatrix) noexcept
 {
 	// Create full path
@@ -181,7 +191,7 @@ Level loadStaticSceneSponza(
 	path.printf("%s%s", basePath, fileName);
 	if (path.size() < 1) {
 		SFZ_ERROR("SponzaLoader", "Failed to load model, empty path");
-		return Level();
+		return false;
 	}
 
 	// Get the real base path from the path
@@ -197,7 +207,7 @@ Level loadStaticSceneSponza(
 	}
 	if (realBasePath.size() == path.size()) {
 		SFZ_ERROR("SponzaLoader", "Failed to find real base path, basePath=\"%s\", fileName=\"%s\"", basePath, fileName);
-		return Level();
+		return false;
 	}
 
 	// Load model through Assimp
@@ -205,16 +215,15 @@ Level loadStaticSceneSponza(
 	const aiScene* scene = importer.ReadFile(path.str(), aiProcessPreset_TargetRealtime_Quality | aiProcess_FlipUVs);
 	if (scene == nullptr || scene->mFlags == AI_SCENE_FLAGS_INCOMPLETE || scene->mRootNode == nullptr) {
 		SFZ_ERROR("SponzaLoader", "Failed to load model \"%s\", error: %s", fileName, importer.GetErrorString());
-		return Level();
+		return false;
 	}
-
-	Level tmpLevel;
 
 	// Process tree, filling up the list of renderable components along the way
 	const mat4 normalMatrix = inverse(transpose(modelMatrix));
-	processNode(realBasePath.str(), tmpLevel, scene, scene->mRootNode, modelMatrix, normalMatrix);
+	HashMap<StackString256, uint32_t> texMapping;
+	processNode(realBasePath.str(), assets, texMapping, scene, scene->mRootNode, modelMatrix, normalMatrix);
 
-	return tmpLevel;
+	return true;
 }
 
 } // namespace ph

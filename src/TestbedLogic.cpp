@@ -63,18 +63,19 @@ public:
 	void initialize(UpdateableState& state, Renderer& renderer) override final
 	{
 		// Load sponza level
-		Level level = loadStaticSceneSponza("", "resources/sponzaPBR/sponzaPBR.obj", mat44::scaling3(0.05f));
+		loadStaticSceneSponza(
+			"", "resources/sponzaPBR/sponzaPBR.obj", state.assets, mat44::scaling3(0.05f));
 		DynArray<ConstImageView> textureViews;
-		for (const auto& texture : level.textures) textureViews.add(texture);
+		for (const auto& texture : state.assets.textures) textureViews.add(texture);
 		renderer.setTextures(textureViews);
-		renderer.setMaterials(level.materials);
+		renderer.setMaterials(state.assets.materials);
 		DynArray<ConstMeshView> meshViews;
-		for (const auto& mesh : level.meshes) meshViews.add(mesh);
+		for (const auto& mesh : state.assets.meshes) meshViews.add(mesh);
 		renderer.setDynamicMeshes(meshViews);
 
 		// Create RenderEntitites to render
-		state.renderEntities.create(level.meshes.size());
-		for (uint32_t i = 0; i < level.meshes.size(); i++) {
+		state.renderEntities.create(state.assets.meshes.size());
+		for (uint32_t i = 0; i < state.assets.meshes.size(); i++) {
 			ph::RenderEntity entity;
 			entity.meshIndex = i;
 			state.renderEntities.add(entity);
