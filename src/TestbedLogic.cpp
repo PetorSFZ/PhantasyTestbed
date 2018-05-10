@@ -71,7 +71,7 @@ public:
 		// Load sponza level
 		loadStaticSceneSponza(
 			"", "resources/sponzaPBR/sponzaPBR.obj", state.dynamicAssets, mat44::scaling3(0.05f));
-		
+
 		// ----------------------------------------------------------------------------------------
 		// Temporary glTF test code
 
@@ -79,11 +79,17 @@ public:
 		//Mesh tmpMesh = createCubeModel(getDefaultAllocator(), 0);
 		//state.dynamicAssets.meshes.add(tmpMesh);
 
-		if (!loadAssetsFromGltf("resources/Box.gltf", state.dynamicAssets)) {
+		/*if (!loadAssetsFromGltf("resources/Box.gltf", state.dynamicAssets)) {
 			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
-		}
+		}*/
+
+		/*if (!loadAssetsFromGltf("resources/BoomBox/BoomBox.gltf", state.dynamicAssets)) {
+			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+		}*/
 
 		// ----------------------------------------------------------------------------------------
+
+        auto m = state.dynamicAssets.materials[1];
 
 		// Create RenderEntitites to render
 		state.renderEntities.create(state.dynamicAssets.meshes.size());
@@ -93,6 +99,8 @@ public:
 			entity.transform = mat34::identity();
 			state.renderEntities.add(entity);
 		}
+
+		state.renderEntities.last().transform = mat34::scaling3(100.0f) + mat34::translation3(vec3(0.0f, 1.0f, 0.0f));
 
 		// Uploaded dynamic level assets to renderer
 		DynArray<ConstImageView> textureViews;
@@ -128,6 +136,15 @@ public:
 
 			state.dynamicSphereLights.add(tmp);
 		}
+
+		ph::SphereLight tmpLight;
+		tmpLight.pos = vec3(0.0f, 5.0f, 0.0f);
+		tmpLight.range = 70.0f;
+		tmpLight.radius = 0.5f;
+		tmpLight.strength = vec3(100.0f);
+		tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
+		state.dynamicSphereLights.add(tmpLight);
+
 
 		GlobalConfig& cfg = GlobalConfig::instance();
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
