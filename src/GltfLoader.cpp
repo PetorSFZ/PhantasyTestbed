@@ -148,6 +148,21 @@ static DataAccess accessData(
 	return accessData(model, itr->second);
 }
 
+static uint8_t toU8(float val) noexcept
+{
+	return uint8_t(std::roundf(val * 255.0f));
+}
+
+static vec4_u8 toSfz(const tinygltf::ColorValue& val) noexcept
+{
+	vec4_u8 tmp;
+	tmp.x = toU8(val[0]);
+	tmp.y = toU8(val[1]);
+	tmp.z = toU8(val[2]);
+	tmp.w = toU8(val[3]);
+	return tmp;
+}
+
 static bool extractAssets(
 	const char* basePath, const tinygltf::Model& model, LevelAssets& assets) noexcept
 {
@@ -199,7 +214,7 @@ static bool extractAssets(
 		if (hasParam("baseColorFactor")) {
 			const tinygltf::Parameter& param = material.values.find("baseColorFactor")->second;
 			tinygltf::ColorValue color = param.ColorFactor();
-			phMat.albedo = vec4(float(color[0]), float(color[1]), float(color[2]), float(color[3]));
+			phMat.albedo = toSfz(color);
 		}
 
 		// Albedo texture

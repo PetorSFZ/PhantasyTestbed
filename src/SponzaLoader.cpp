@@ -19,15 +19,33 @@ namespace ph {
 
 using namespace sfz;
 
-static bool approxEqual(const Material& lhs, const Material& rhs) noexcept
+static bool operator== (const Material& lhs, const Material& rhs) noexcept
 {
 	return
+		lhs.albedo == rhs.albedo &&
+		lhs.emissive == rhs.emissive &&
+		lhs.roughness == rhs.roughness &&
+		lhs.metallic == rhs.metallic &&
+
 		lhs.albedoTexIndex == rhs.albedoTexIndex &&
-		lhs.roughnessTexIndex == rhs.roughnessTexIndex &&
-		lhs.metallicTexIndex == rhs.metallicTexIndex &&
-		sfz::approxEqual(lhs.albedo, rhs.albedo) &&
-		sfz::approxEqual(lhs.roughness, rhs.roughness) &&
-		sfz::approxEqual(lhs.metallic, rhs.metallic);
+		lhs.metallicRoughnessTexIndex == rhs.metallicRoughnessTexIndex &&
+		lhs.normalTexIndex == rhs.normalTexIndex &&
+		lhs.occlusionTexIndex == rhs.occlusionTexIndex &&
+		lhs.emissiveTexIndex == rhs.emissiveTexIndex;
+}
+
+static uint8_t f32ToU8(float f) noexcept
+{
+	return uint8_t(std::roundf(f * 255.0f));
+}
+static vec4_u8 toSFZ(const aiColor3D& c) noexcept
+{
+	vec4_u8 tmp;
+	tmp.x = f32ToU8(c.r);
+	tmp.y = f32ToU8(c.g);
+	tmp.z = f32ToU8(c.b);
+	tmp.w = f32ToU8(1.0f);
+	return tmp;
 }
 
 static vec3 toSFZ(const aiVector3D& v)
@@ -45,6 +63,7 @@ static void processNode(
 	const mat4& normalMatrix) noexcept
 {
 	aiString tmpPath;
+	aiString tmpPath2;
 
 	// Process all meshes in current node
 	for (uint32_t meshIndex = 0; meshIndex < node->mNumMeshes; meshIndex++) {
@@ -101,60 +120,76 @@ static void processNode(
 		else {
 			aiColor3D color(0.0f, 0.0f, 0.0f);
 			mat->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-			materialTmp.albedo = vec4(color.r, color.g, color.b, 1.0f);
+			materialTmp.albedo = toSFZ(color);
 		}
 
+		// Roughness and metallic
+		// Roughness stored in map_Ns, specular highlight component
+		// Metallic stored in map_Ka, ambient texture map
+		if (mat->GetTextureCount(aiTextureType_SHININESS) > 0 &&
+			mat->GetTextureCount(aiTextureType_AMBIENT) > 0) {
 
-		// Roughness (stored in map_Ns, specular highlight component)
-		if (mat->GetTextureCount(aiTextureType_SHININESS) > 0) {
 			sfz_assert_debug(mat->GetTextureCount(aiTextureType_SHININESS) == 1);
+			sfz_assert_debug(mat->GetTextureCount(aiTextureType_AMBIENT) == 1);
 
 			tmpPath.Clear();
 			mat->GetTexture(aiTextureType_SHININESS, 0, &tmpPath);
 
-			const uint32_t* indexPtr = texMapping.get(tmpPath.C_Str());
-			if (indexPtr == nullptr) {
-				const uint32_t nextIndex = level.textures.size();
-				texMapping[tmpPath.C_Str()] = nextIndex;
-				indexPtr = texMapping.get(tmpPath.C_Str());
+			tmpPath2.Clear();
+			mat->GetTexture(aiTextureType_AMBIENT, 0, &tmpPath2);
 
-				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
+			str512 combinedStr("%s%s", tmpPath.C_Str(), tmpPath2.C_Str());
+
+			const uint32_t* indexPtr = texMapping.get(combinedStr);
+			if (indexPtr == nullptr) {
+
+				const uint32_t nextIndex = level.textures.size();
+				texMapping[combinedStr] = nextIndex;
+				indexPtr = texMapping.get(combinedStr);
+
+				Image roughnessImage = loadImage(basePath, tmpPath.C_Str());
+				Image metallicImage = loadImage(basePath, tmpPath2.C_Str());
+
+				sfz_assert_debug(roughnessImage.rawData.data() != nullptr);
+				sfz_assert_debug(metallicImage.rawData.data() != nullptr);
+				sfz_assert_debug(roughnessImage.width == metallicImage.width);
+				sfz_assert_debug(roughnessImage.height == metallicImage.height);
+				sfz_assert_debug(roughnessImage.bytesPerPixel == 1);
+				sfz_assert_debug(metallicImage.bytesPerPixel == 1);
+
+				Image combined;
+				combined.rawData.setCapacity(
+					uint32_t(roughnessImage.width * roughnessImage.height * 2));
+				combined.rawData.setSize(combined.rawData.capacity());
+				combined.width = roughnessImage.width;
+				combined.height = roughnessImage.height;
+				combined.bytesPerPixel = 2;
+				
+				for (uint32_t i = 0; i < roughnessImage.rawData.size(); i++) {
+					uint8_t roughness = roughnessImage.rawData[i];
+					uint8_t metallic = metallicImage.rawData[i];
+					combined.rawData[i*2] = metallic;
+					combined.rawData[i*2 + 1] = roughness;
+				}
+
+				level.textures.add(std::move(combined));
 			}
-			materialTmp.roughnessTexIndex = *indexPtr;
+			materialTmp.metallicRoughnessTexIndex = uint16_t(*indexPtr);
 		}
 		else {
 			aiColor3D color(0.0f, 0.0f, 0.0f);
 			mat->Get(AI_MATKEY_COLOR_SPECULAR, color);
-			materialTmp.roughness = color.r;
-		}
+			materialTmp.roughness = f32ToU8(color.r);
 
-		// Metallic (stored in map_Ka, ambient texture map)
-		if (mat->GetTextureCount(aiTextureType_AMBIENT) > 0) {
-			sfz_assert_debug(mat->GetTextureCount(aiTextureType_AMBIENT) == 1);
-
-			tmpPath.Clear();
-			mat->GetTexture(aiTextureType_AMBIENT, 0, &tmpPath);
-
-			const uint32_t* indexPtr = texMapping.get(tmpPath.C_Str());
-			if (indexPtr == nullptr) {
-				const uint32_t nextIndex = level.textures.size();
-				texMapping[tmpPath.C_Str()] = nextIndex;
-				indexPtr = texMapping.get(tmpPath.C_Str());
-
-				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
-			}
-			materialTmp.metallicTexIndex = *indexPtr;
-		}
-		else {
-			aiColor3D color(0.0f, 0.0f, 0.0f);
+			color = aiColor3D (0.0f, 0.0f, 0.0f);
 			mat->Get(AI_MATKEY_COLOR_AMBIENT, color);
-			materialTmp.metallic = color.r;
+			materialTmp.metallic = f32ToU8(color.r);
 		}
 
 		// Go through all existing materials and try to find one identical to the current one
 		uint32_t materialIndex = ~0u;
 		for (uint32_t i = 0; i < level.materials.size(); i++) {
-			if (approxEqual(level.materials[i], materialTmp)) {
+			if (level.materials[i] == materialTmp) {
 				materialIndex = i;
 				break;
 			}
