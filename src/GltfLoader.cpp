@@ -206,19 +206,22 @@ static bool extractAssets(
 		Material phMat;
 
 		// Lambda for checking if parameter exists
-		auto hasParam = [&](const char* key) {
+		auto hasParamValues = [&](const char* key) {
 			return material.values.find(key) != material.values.end();
+		};
+		auto hasParamAdditionalValues = [&](const char* key) {
+			return material.additionalValues.find(key) != material.additionalValues.end();
 		};
 
 		// Albedo value
-		if (hasParam("baseColorFactor")) {
+		if (hasParamValues("baseColorFactor")) {
 			const tinygltf::Parameter& param = material.values.find("baseColorFactor")->second;
 			tinygltf::ColorValue color = param.ColorFactor();
 			phMat.albedo = toSfz(color);
 		}
 
 		// Albedo texture
-		if (hasParam("baseColorTexture")) {
+		if (hasParamValues("baseColorTexture")) {
 			const tinygltf::Parameter& param = material.values.find("baseColorTexture")->second;
 			int texIndex = param.TextureIndex();
 			if (texIndex < 0 || int(model.textures.size()) <= texIndex) {
@@ -230,76 +233,70 @@ static bool extractAssets(
 		}
 
 		// Roughness Value
-		if (hasParam("roughnessFactor")) {
+		if (hasParamValues("roughnessFactor")) {
 			const tinygltf::Parameter& param = material.values.find("roughnessFactor")->second;
-			phMat.metallic = float(param.Factor());
+			phMat.metallic = toU8(float(param.Factor()));
 		}
 
 		// Metallic Value
-		if (hasParam("metallicFactor")) {
+		if (hasParamValues("metallicFactor")) {
 			const tinygltf::Parameter& param = material.values.find("metallicFactor")->second;
-			phMat.metallic = float(param.Factor());
+			phMat.metallic = toU8(float(param.Factor()));
+		}
+
+		// Emissive value
+		if (hasParamAdditionalValues("emissiveFactor")) {
+			const tinygltf::Parameter& param = material.additionalValues.find("emissiveFactor")->second;
+			phMat.metallic = toU8(float(param.Factor()));
 		}
 
 		// Roughness and Metallic texture
-		if (hasParam("metallicRoughnessTexture")) {
+		if (hasParamValues("metallicRoughnessTexture")) {
 			const tinygltf::Parameter& param = material.values.find("metallicRoughnessTexture")->second;
 			int texIndex = param.TextureIndex();
 			if (texIndex < 0 || int(model.textures.size()) <= texIndex) {
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			SFZ_INFO_NOISY("tinygltf", "MetallicRoughness texture found, not adding because no support yet");
-			// TODO: Store roughnessMetallic texture
+			phMat.metallicRoughnessTexIndex = texBaseIndex + uint32_t(texIndex);
 			// TODO: Store which texcoords to use
 		}
 
 		// Normal texture
-		if (hasParam("normalTexture")) {
-			const tinygltf::Parameter& param = material.values.find("normalTexture")->second;
+		if (hasParamAdditionalValues("normalTexture")) {
+			const tinygltf::Parameter& param = material.additionalValues.find("normalTexture")->second;
 			int texIndex = param.TextureIndex();
 			if (texIndex < 0 || int(model.textures.size()) <= texIndex) {
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			SFZ_INFO_NOISY("tinygltf", "Normal texture found, not adding because no support yet");
-			// TODO: Store normal texture
+			phMat.normalTexIndex = texBaseIndex + uint32_t(texIndex);
 			// TODO: Store which texcoords to use
 		}
 
 		// Occlusion texture
-		// TODO: Not sure if occlusionTexture is the correct key
-		if (hasParam("occlusionTexture")) {
-			const tinygltf::Parameter& param = material.values.find("occlusionTexture")->second;
+		if (hasParamAdditionalValues("occlusionTexture")) {
+			const tinygltf::Parameter& param = material.additionalValues.find("occlusionTexture")->second;
 			int texIndex = param.TextureIndex();
 			if (texIndex < 0 || int(model.textures.size()) <= texIndex) {
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			SFZ_INFO_NOISY("tinygltf", "Occlusion texture found, not adding because no support yet");
-			// TODO: Store normal texture
+			phMat.occlusionTexIndex = texBaseIndex + uint32_t(texIndex);
 			// TODO: Store which texcoords to use
 		}
 
 		// Emissive texture
-		// TODO: Not sure if emissiveTexture is the correct key
-		if (hasParam("emissiveTexture")) {
-			const tinygltf::Parameter& param = material.values.find("emissiveTexture")->second;
+		if (hasParamAdditionalValues("emissiveTexture")) {
+			const tinygltf::Parameter& param = material.additionalValues.find("emissiveTexture")->second;
 			int texIndex = param.TextureIndex();
 			if (texIndex < 0 || int(model.textures.size()) <= texIndex) {
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			SFZ_INFO_NOISY("tinygltf", "Emissive texture found, not adding because no support yet");
-			// TODO: Store normal texture
+			phMat.emissiveTexIndex = texBaseIndex + uint32_t(texIndex);
 			// TODO: Store which texcoords to use
 		}
-
-		// Debug code for printing whats in the material
-		/*for (const auto& itr : material.values) {
-			const tinygltf::Parameter& param = itr.second;
-			printf("%s\n", itr.first.c_str());
-		}*/
 
 		// Add material to assets
 		assets.materials.add(phMat);
