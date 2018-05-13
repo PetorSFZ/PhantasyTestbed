@@ -12,6 +12,7 @@
 #include "Cube.hpp"
 #include "SponzaLoader.hpp"
 #include "GltfLoader.hpp"
+#include "GltfWriter.hpp"
 
 using namespace ph;
 using namespace sfz;
@@ -72,6 +73,13 @@ public:
 		loadStaticSceneSponza(
 			"", "resources/sponzaPBR/sponzaPBR.obj", state.dynamicAssets, mat44::scaling3(0.05f));
 
+		DynArray<uint32_t> meshIndices;
+		meshIndices.setCapacity(state.dynamicAssets.meshes.size());
+		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
+			meshIndices.add(i);
+		}
+		writeAssetsToGltf("resources/tempwrite/sponzaPBR.gltf", state.dynamicAssets, meshIndices);
+
 		// ----------------------------------------------------------------------------------------
 		// Temporary glTF test code
 
@@ -88,8 +96,6 @@ public:
 		}*/
 
 		// ----------------------------------------------------------------------------------------
-
-        auto m = state.dynamicAssets.materials[1];
 
 		// Create RenderEntitites to render
 		state.renderEntities.create(state.dynamicAssets.meshes.size());
@@ -138,10 +144,10 @@ public:
 		}
 
 		ph::SphereLight tmpLight;
-		tmpLight.pos = vec3(0.0f, 5.0f, 0.0f);
+		tmpLight.pos = vec3(0.0f, 3.0f, 0.0f);
 		tmpLight.range = 70.0f;
 		tmpLight.radius = 0.5f;
-		tmpLight.strength = vec3(100.0f);
+		tmpLight.strength = vec3(150.0f);
 		tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 		state.dynamicSphereLights.add(tmpLight);
 

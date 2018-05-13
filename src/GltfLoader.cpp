@@ -42,12 +42,14 @@
 namespace ph {
 
 using sfz::HashMap;
-using sfz::StackString320;
+using sfz::str320;
 
-static StackString320 calculateBasePath(const char* path) noexcept
+// Statics
+// ------------------------------------------------------------------------------------------------
+
+static str320 calculateBasePath(const char* path) noexcept
 {
-	StackString320 str;
-	str.printf("%s", path);
+	str320 str("%s", path);
 
 	// Go through path until the path separator is found
 	bool success = false;
@@ -185,7 +187,7 @@ static bool extractAssets(
 	const char* basePath, const tinygltf::Model& model, LevelAssets& assets) noexcept
 {
 	// Load textures
-	HashMap<StackString320, uint32_t> texMapping;
+	HashMap<str320, uint32_t> texMapping;
 	const uint32_t texBaseIndex = assets.textures.size();
 	for (uint32_t i = 0; i < model.textures.size(); i++) {
 		const tinygltf::Texture& tex = model.textures[i];
@@ -406,11 +408,14 @@ static bool extractAssets(
 	return true;
 }
 
+// Entry function
+// ------------------------------------------------------------------------------------------------
+
 bool loadAssetsFromGltf(
 	const char* gltfPath,
 	LevelAssets& assets) noexcept
 {
-	StackString320 basePath = calculateBasePath(gltfPath);
+	str320 basePath = calculateBasePath(gltfPath);
 
 	// Read model from file
 	tinygltf::TinyGLTF loader;
