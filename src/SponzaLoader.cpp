@@ -117,11 +117,9 @@ static void processNode(
 			}
 			materialTmp.albedoTexIndex = *indexPtr;
 		}
-		else {
-			aiColor3D color(0.0f, 0.0f, 0.0f);
-			mat->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-			materialTmp.albedo = toSFZ(color);
-		}
+		aiColor3D color(0.0f, 0.0f, 0.0f);
+		mat->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+		materialTmp.albedo = toSFZ(color);
 
 		// Roughness and metallic
 		// Roughness stored in map_Ns, specular highlight component
@@ -176,14 +174,30 @@ static void processNode(
 			}
 			materialTmp.metallicRoughnessTexIndex = uint16_t(*indexPtr);
 		}
-		else {
-			aiColor3D color(0.0f, 0.0f, 0.0f);
-			mat->Get(AI_MATKEY_COLOR_SPECULAR, color);
-			materialTmp.roughness = f32ToU8(color.r);
+		color = aiColor3D(0.0f, 0.0f, 0.0f);
+		mat->Get(AI_MATKEY_COLOR_SPECULAR, color);
+		materialTmp.roughness = f32ToU8(color.r);
 
-			color = aiColor3D (0.0f, 0.0f, 0.0f);
-			mat->Get(AI_MATKEY_COLOR_AMBIENT, color);
-			materialTmp.metallic = f32ToU8(color.r);
+		color = aiColor3D(0.0f, 0.0f, 0.0f);
+		mat->Get(AI_MATKEY_COLOR_AMBIENT, color);
+		materialTmp.metallic = f32ToU8(color.r);
+
+		// Normal map (stored in height for some reason)
+		if (mat->GetTextureCount(aiTextureType_HEIGHT) > 0) {
+			sfz_assert_debug(mat->GetTextureCount(aiTextureType_HEIGHT) == 1);
+
+			tmpPath.Clear();
+			mat->GetTexture(aiTextureType_HEIGHT, 0, &tmpPath);
+
+			const uint32_t* indexPtr = texMapping.get(tmpPath.C_Str());
+			if (indexPtr == nullptr) {
+				const uint32_t nextIndex = level.textures.size();
+				texMapping[tmpPath.C_Str()] = nextIndex;
+				indexPtr = texMapping.get(tmpPath.C_Str());
+
+				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
+			}
+			materialTmp.normalTexIndex = *indexPtr;
 		}
 
 		// Go through all existing materials and try to find one identical to the current one
