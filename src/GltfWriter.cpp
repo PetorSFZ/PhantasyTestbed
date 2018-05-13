@@ -16,16 +16,17 @@
 //    misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
-#pragma once
-
-#include "ph/rendering/LevelAssets.hpp"
+#include "GltfWriter.hpp"
 
 namespace ph {
 
-/// Loads all meshes, textures and materials from a .gltf file into the level assets.
-/// All scene graph information, relative positions and transformations are ignored.
-bool loadAssetsFromGltf(
-	const char* gltfPath,
-	LevelAssets& assets) noexcept;
+bool writeAssetsToGltf(
+	const char* writePath,
+	LevelAssets& assets,
+	const DynArray<uint32_t>& meshIndices) noexcept
+{
+
+	return false;
+}
 
 } // namespace ph

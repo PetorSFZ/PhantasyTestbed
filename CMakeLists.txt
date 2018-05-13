@@ -212,6 +212,8 @@ set(SRC_FILES
 	${INCLUDE_DIR}/Cube.hpp
 	${INCLUDE_DIR}/GltfLoader.hpp
 		${SRC_DIR}/GltfLoader.cpp
+	${INCLUDE_DIR}/GltfWriter.hpp
+		${SRC_DIR}/GltfWriter.cpp
 		${SRC_DIR}/PhantasyTestbedMain.cpp
 	${INCLUDE_DIR}/SponzaLoader.hpp
 		${SRC_DIR}/SponzaLoader.cpp

@@ -22,10 +22,10 @@
 
 namespace ph {
 
-/// Loads all meshes, textures and materials from a .gltf file into the level assets.
-/// All scene graph information, relative positions and transformations are ignored.
-bool loadAssetsFromGltf(
-	const char* gltfPath,
-	LevelAssets& assets) noexcept;
+// Writes all the assets corresponding to the meshes specified to glTF.
+bool writeAssetsToGltf(
+	const char* writePath,
+	LevelAssets& assets,
+	const DynArray<uint32_t>& meshIndices) noexcept;
 
 } // namespace ph
