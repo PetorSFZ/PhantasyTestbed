@@ -48,9 +48,40 @@ static vec4_u8 toSFZ(const aiColor3D& c) noexcept
 	return tmp;
 }
 
-static vec3 toSFZ(const aiVector3D& v)
+static vec3 toSFZ(const aiVector3D& v) noexcept
 {
 	return vec3(v.x, v.y, v.z);
+}
+
+static void getBasePathAndFileName(const str320& path, str256& dirPath, str96& fileName) noexcept
+{
+	dirPath.printf("%s", path.str);
+
+	// Go through path until the path separator is found
+	bool success = false;
+	for (uint32_t i = path.size() - 1; i > 0; i--) {
+		const char c = path.str[i - 1];
+		if (c == '\\' || c == '/') {
+			dirPath.str[i] = '\0';
+			fileName.printf("%s", path.str + i);
+			success = true;
+			break;
+		}
+	}
+
+	// If no path separator is found, assume we have no base path
+	if (!success) {
+		dirPath.printf("");
+		fileName.printf("%s", path.str);
+	}
+}
+
+static FileMapping createFileMapping(const char* basePath, const char* filePath) noexcept
+{
+	FileMapping mapping;
+	mapping.hasFileMapping = true;
+	getBasePathAndFileName(str320("%s%s", basePath, filePath), mapping.dirPath, mapping.fileName);
+	return mapping;
 }
 
 static void processNode(
@@ -114,6 +145,7 @@ static void processNode(
 				indexPtr = texMapping.get(tmpPath.C_Str());
 
 				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
+				level.textureFileMappings.add(createFileMapping(basePath, tmpPath.C_Str()));
 			}
 			materialTmp.albedoTexIndex = *indexPtr;
 		}
@@ -171,6 +203,7 @@ static void processNode(
 				}
 
 				level.textures.add(std::move(combined));
+				level.textureFileMappings.add(createFileMapping(basePath, tmpPath.C_Str()));
 			}
 			materialTmp.metallicRoughnessTexIndex = uint16_t(*indexPtr);
 		}
@@ -196,6 +229,7 @@ static void processNode(
 				indexPtr = texMapping.get(tmpPath.C_Str());
 
 				level.textures.add(loadImage(basePath, tmpPath.C_Str()));
+				level.textureFileMappings.add(createFileMapping(basePath, tmpPath.C_Str()));
 			}
 			materialTmp.normalTexIndex = *indexPtr;
 		}
