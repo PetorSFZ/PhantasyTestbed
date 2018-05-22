@@ -201,6 +201,58 @@ static void writeMaterials(DynString& gltf, const DynArray<Material>& materials)
 	gltf.printfAppend("%s", "\t],\n");
 }
 
+static str96 stripFileEnding(const str96& fileName) noexcept
+{
+	str96 tmp = fileName;
+
+	for (int32_t i = int32_t(fileName.size()) - 1; i >= 0; i--) {
+		const char c = fileName.str[i];
+		if (c == '.') {
+			tmp.str[i] = '\0';
+			break;
+		}
+	}
+
+	return tmp;
+}
+
+static void writeTextures(
+	DynString& gltf,
+	const char* basePath,
+	const LevelAssets& assets,
+	const DynArray<uint32_t>& texIndices) noexcept
+{
+	sfz_assert_debug(assets.textures.size() == assets.textureFileMappings.size());
+	if (texIndices.size() == 0) return;
+
+	gltf.printfAppend("%s", "\t\"images\": [\n");
+
+	// Attempt to create directory for textures if necessary
+	sfz::createDirectory(str320("%stextures", basePath));
+
+	for (uint32_t i = 0; i < texIndices.size(); i++)
+	{
+		uint32_t originalTexIndex = texIndices[i];
+		const FileMapping& mapping = assets.textureFileMappings[originalTexIndex];
+		str96 fileNameWithoutEnding = stripFileEnding(mapping.fileName);
+
+		// Write image to file
+		str320 imageWritePath("%stextures/%s.png", basePath, fileNameWithoutEnding.str);
+		if (!saveImagePng(assets.textures[originalTexIndex], imageWritePath)) {
+			SFZ_ERROR("glTF writer", "Failed to write image \"%s\" to path \"%s\"",
+				fileNameWithoutEnding.str, imageWritePath.str);
+		}
+
+		// Write uri to gltf string
+		gltf.printfAppend("%s", "\t\t{\n");
+		gltf.printfAppend("\t\t\t\"uri\": \"textures/%s.png\"\n", fileNameWithoutEnding.str);
+		if ((i + 1) == texIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
+		else gltf.printfAppend("%s", "\t\t},\n");
+	}
+
+	gltf.printfAppend("%s", "\t],\n");
+}
+
 static void writeExit(DynString& gltf) noexcept
 {
 	gltf.printfAppend("%s", "}\n");
@@ -230,7 +282,7 @@ bool writeAssetsToGltf(
 
 	writeHeader(tempGltfString);
 
-
+	// Information about which materials to write
 	DynArray<Material> materialsToWrite;
 	DynArray<uint32_t> materialsOriginalIndex;
 	materialsToWrite.create(100);
@@ -273,10 +325,54 @@ bool writeAssetsToGltf(
 		// TODO: Write meshes?
 	}
 
+	// Go through materials to write and find all textures to write, also update texture indices in
+	// materials to reflect their new indices in the gltf file.
+	DynArray<uint32_t> texturesToWrite;
+	texturesToWrite.create(100);
+	for (uint32_t i = 0; i < materialsToWrite.size(); i++) {
+		Material& m = materialsToWrite[i];
+
+		// Albedo
+		if (m.albedoTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.albedoTexIndex < assets.textures.size());
+			texturesToWrite.add(m.albedoTexIndex);
+			m.albedoTexIndex = texturesToWrite.size() - 1;
+		}
+
+		// MetallicRoughness
+		if (m.metallicRoughnessTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.metallicRoughnessTexIndex < assets.textures.size());
+			texturesToWrite.add(m.metallicRoughnessTexIndex);
+			m.metallicRoughnessTexIndex = texturesToWrite.size() - 1;
+		}
+
+		// Normal
+		if (m.normalTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.normalTexIndex < assets.textures.size());
+			texturesToWrite.add(m.normalTexIndex);
+			m.normalTexIndex = texturesToWrite.size() - 1;
+		}
+
+		// Occlusion
+		if (m.occlusionTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.occlusionTexIndex < assets.textures.size());
+			texturesToWrite.add(m.occlusionTexIndex);
+			m.occlusionTexIndex = texturesToWrite.size() - 1;
+		}
+
+		// Emissive
+		if (m.emissiveTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.emissiveTexIndex < assets.textures.size());
+			texturesToWrite.add(m.emissiveTexIndex);
+			m.emissiveTexIndex = texturesToWrite.size() - 1;
+		}
+	}
+
 	// Write materials
 	writeMaterials(tempGltfString, materialsToWrite);
 
-
+	// Write textures
+	writeTextures(tempGltfString, basePath, assets, texturesToWrite);
 
 	writeExit(tempGltfString);
 

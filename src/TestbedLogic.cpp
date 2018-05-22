@@ -73,6 +73,7 @@ public:
 		loadStaticSceneSponza(
 			"", "resources/sponzaPBR/sponzaPBR.obj", state.dynamicAssets, mat44::scaling3(0.05f));
 
+		// Write sponza level
 		DynArray<uint32_t> meshIndices;
 		meshIndices.setCapacity(state.dynamicAssets.meshes.size());
 		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
@@ -106,7 +107,7 @@ public:
 			state.renderEntities.add(entity);
 		}
 
-		state.renderEntities.last().transform = mat34::scaling3(100.0f) + mat34::translation3(vec3(0.0f, 1.0f, 0.0f));
+		//state.renderEntities.last().transform = mat34::scaling3(100.0f) + mat34::translation3(vec3(0.0f, 1.0f, 0.0f));
 
 		// Uploaded dynamic level assets to renderer
 		DynArray<ConstImageView> textureViews;
