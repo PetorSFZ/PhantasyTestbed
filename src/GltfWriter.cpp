@@ -51,6 +51,35 @@ static str320 calculateBasePath(const char* path) noexcept
 	return str;
 }
 
+static str96 getFileName(const char* path) noexcept
+{
+	str96 tmp;
+	int32_t len = int32_t(strlen(path));
+	for (int32_t i = len; i > 0; i--) {
+		char c = path[i-1];
+		if (c == '\\' || c == '/') {
+			tmp.printf("%s", path + i);
+			break;
+		}
+	}
+	return tmp;
+}
+
+static str96 stripFileEnding(const str96& fileName) noexcept
+{
+	str96 tmp = fileName;
+
+	for (int32_t i = int32_t(fileName.size()) - 1; i >= 0; i--) {
+		const char c = fileName.str[i];
+		if (c == '.') {
+			tmp.str[i] = '\0';
+			break;
+		}
+	}
+
+	return tmp;
+}
+
 // Write gltf asset header (non-optional)
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#asset
 static void writeHeader(DynString& gltf) noexcept
@@ -58,7 +87,7 @@ static void writeHeader(DynString& gltf) noexcept
 	gltf.printfAppend("%s", "{\n");
 	gltf.printfAppend("%s", "\t\"asset\": {\n");
 	gltf.printfAppend("%s", "\t\t\"version\": \"2.0\",\n");
-	gltf.printfAppend("%s", "\t\t\"generator\": \"Phantasy Engine\"\n");
+	gltf.printfAppend("%s", "\t\t\"generator\": \"Phantasy Engine Exporter v1.0\"\n");
 	gltf.printfAppend("%s", "\t},\n");
 }
 
@@ -69,7 +98,7 @@ struct MeshComponent {
 
 // Sorts all triangles in a mesh into different components where each component uses only one
 // material. If the entire mesh uses a single material only one component will be returned.
-static DynArray<MeshComponent> componentsFromMesh(const MeshView& mesh) noexcept
+static DynArray<MeshComponent> componentsFromMesh(const ConstMeshView& mesh) noexcept
 {
 	sfz_assert_debug((mesh.numIndices % 3) == 0);
 
@@ -201,21 +230,6 @@ static void writeMaterials(DynString& gltf, const DynArray<Material>& materials)
 	gltf.printfAppend("%s", "\t],\n");
 }
 
-static str96 stripFileEnding(const str96& fileName) noexcept
-{
-	str96 tmp = fileName;
-
-	for (int32_t i = int32_t(fileName.size()) - 1; i >= 0; i--) {
-		const char c = fileName.str[i];
-		if (c == '.') {
-			tmp.str[i] = '\0';
-			break;
-		}
-	}
-
-	return tmp;
-}
-
 static void writeTextures(
 	DynString& gltf,
 	const char* basePath,
@@ -225,13 +239,12 @@ static void writeTextures(
 	sfz_assert_debug(assets.textures.size() == assets.textureFileMappings.size());
 	if (texIndices.size() == 0) return;
 
-	gltf.printfAppend("%s", "\t\"images\": [\n");
-
 	// Attempt to create directory for textures if necessary
 	sfz::createDirectory(str320("%stextures", basePath));
 
-	for (uint32_t i = 0; i < texIndices.size(); i++)
-	{
+	// Write "images" section
+	gltf.printfAppend("%s", "\t\"images\": [\n");
+	for (uint32_t i = 0; i < texIndices.size(); i++) {
 		uint32_t originalTexIndex = texIndices[i];
 		const FileMapping& mapping = assets.textureFileMappings[originalTexIndex];
 		str96 fileNameWithoutEnding = stripFileEnding(mapping.fileName);
@@ -249,7 +262,16 @@ static void writeTextures(
 		if ((i + 1) == texIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
 		else gltf.printfAppend("%s", "\t\t},\n");
 	}
+	gltf.printfAppend("%s", "\t],\n");
 
+	// Write "textures" section
+	gltf.printfAppend("%s", "\t\"textures\": [\n");
+	for (uint32_t i = 0; i < texIndices.size(); i++) {
+		gltf.printfAppend("%s", "\t\t{\n");
+		gltf.printfAppend("\t\t\t\"source\": %u\n", i);
+		if ((i + 1) == texIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
+		else gltf.printfAppend("%s", "\t\t},\n");
+	}
 	gltf.printfAppend("%s", "\t],\n");
 }
 
@@ -276,6 +298,28 @@ bool writeAssetsToGltf(
 		}
 	}
 
+	// Get file name
+	str96 fileNameWithoutEnding = stripFileEnding(getFileName(writePath));
+
+	// Calculate how many bytes will be needed for writing the binary data
+	uint32_t numBytesCombinedBinaryData = 0;
+	for (uint32_t i = 0; i < meshIndices.size(); i++) {
+		uint32_t meshIdx = meshIndices[i];
+		const Mesh& mesh = assets.meshes[meshIdx];
+		numBytesCombinedBinaryData += mesh.vertices.size() * sizeof(Vertex);
+		numBytesCombinedBinaryData += mesh.indices.size() * sizeof(uint32_t);
+	}
+
+	// Allocate memory for writing (plus some extra)
+	DynArray<uint8_t> combinedBinaryData(numBytesCombinedBinaryData + 8192);
+
+	// Offsets into combined binary data array
+	struct MeshOffsets {
+		uint32_t vertexOffset;
+		DynArray<uint32_t> indicesOffsets;
+	};
+	DynArray<MeshOffsets> binaryOffsets(meshIndices.size());
+
 	// Create gltf string to fill in
 	const uint32_t GLTF_MAX_CAPACITY = 10 * 1024 * 1024; // Assume max 10 MiB for the .gltf file
 	sfz::DynString tempGltfString("", GLTF_MAX_CAPACITY);
@@ -288,7 +332,7 @@ bool writeAssetsToGltf(
 	materialsToWrite.create(100);
 	materialsOriginalIndex.create(100);
 	
-	// Check all meshes
+	// Go through all meshes, split into components and combine into combined binary data
 	for (uint32_t i = 0; i < meshIndices.size(); i++) {
 		uint32_t meshIdx = meshIndices[i];
 
@@ -299,7 +343,8 @@ bool writeAssetsToGltf(
 		}
 
 		// Split mesh into components
-		DynArray<MeshComponent> components = componentsFromMesh(assets.meshes[meshIdx]);
+		const Mesh& mesh = assets.meshes[meshIdx];
+		DynArray<MeshComponent> components = componentsFromMesh(mesh);
 
 		// Add new materials from components materials to write list and modify component to use
 		// the new indices
@@ -322,7 +367,30 @@ bool writeAssetsToGltf(
 			}
 		}
 
-		// TODO: Write meshes?
+		// Add vertex data to combined binary data
+		MeshOffsets offsets;
+		offsets.vertexOffset = combinedBinaryData.size();
+		combinedBinaryData.add(reinterpret_cast<const uint8_t*>(mesh.vertices.data()),
+			mesh.vertices.size() * sizeof(Vertex));
+		
+		// Add indices to combined binary data
+		offsets.indicesOffsets.create(components.size());
+		for (const MeshComponent& component : components) {
+			offsets.indicesOffsets.add(combinedBinaryData.size());
+			combinedBinaryData.add(reinterpret_cast<const uint8_t*>(component.indices.data()),
+				component.indices.size() * sizeof(uint32_t));
+		}
+	}
+
+	// Write binary data to file
+	bool binaryWriteSuccess = sfz::writeBinaryFile(
+		str320("%s%s.bin",basePath.str, fileNameWithoutEnding.str),
+		combinedBinaryData.data(),
+		combinedBinaryData.size());
+	if (!binaryWriteSuccess) {
+		SFZ_ERROR("glTF writer", "Failed to write binary data to file: \"%s\"",
+			str320("%s%s.bin", basePath.str, fileNameWithoutEnding.str).str);
+		return false;
 	}
 
 	// Go through materials to write and find all textures to write, also update texture indices in
