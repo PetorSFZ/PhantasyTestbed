@@ -233,6 +233,7 @@ static void writeMaterials(DynString& gltf, const DynArray<Material>& materials)
 static void writeTextures(
 	DynString& gltf,
 	const char* basePath,
+	const char* baseMainFileName,
 	const LevelAssets& assets,
 	const DynArray<uint32_t>& texIndices) noexcept
 {
@@ -240,7 +241,7 @@ static void writeTextures(
 	if (texIndices.size() == 0) return;
 
 	// Attempt to create directory for textures if necessary
-	sfz::createDirectory(str320("%stextures", basePath));
+	sfz::createDirectory(str320("%s%s", basePath, baseMainFileName));
 
 	// Write "images" section
 	gltf.printfAppend("%s", "\t\"images\": [\n");
@@ -250,7 +251,7 @@ static void writeTextures(
 		str96 fileNameWithoutEnding = stripFileEnding(mapping.fileName);
 
 		// Write image to file
-		str320 imageWritePath("%stextures/%s.png", basePath, fileNameWithoutEnding.str);
+		str320 imageWritePath("%s/%s/%s.png", basePath, baseMainFileName, fileNameWithoutEnding.str);
 		if (!saveImagePng(assets.textures[originalTexIndex], imageWritePath)) {
 			SFZ_ERROR("glTF writer", "Failed to write image \"%s\" to path \"%s\"",
 				fileNameWithoutEnding.str, imageWritePath.str);
@@ -258,7 +259,8 @@ static void writeTextures(
 
 		// Write uri to gltf string
 		gltf.printfAppend("%s", "\t\t{\n");
-		gltf.printfAppend("\t\t\t\"uri\": \"textures/%s.png\"\n", fileNameWithoutEnding.str);
+		gltf.printfAppend("\t\t\t\"uri\": \"%s/%s.png\"\n",
+			baseMainFileName, fileNameWithoutEnding.str);
 		if ((i + 1) == texIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
 		else gltf.printfAppend("%s", "\t\t},\n");
 	}
@@ -384,7 +386,7 @@ bool writeAssetsToGltf(
 
 	// Write binary data to file
 	bool binaryWriteSuccess = sfz::writeBinaryFile(
-		str320("%s%s.bin",basePath.str, fileNameWithoutEnding.str),
+		str320("%s%s/%s.bin", basePath.str, fileNameWithoutEnding.str, fileNameWithoutEnding.str),
 		combinedBinaryData.data(),
 		combinedBinaryData.size());
 	if (!binaryWriteSuccess) {
@@ -440,7 +442,7 @@ bool writeAssetsToGltf(
 	writeMaterials(tempGltfString, materialsToWrite);
 
 	// Write textures
-	writeTextures(tempGltfString, basePath, assets, texturesToWrite);
+	writeTextures(tempGltfString, basePath, fileNameWithoutEnding.str, assets, texturesToWrite);
 
 	writeExit(tempGltfString);
 
