@@ -25,7 +25,7 @@ namespace ph {
 // Writes all the assets corresponding to the meshes specified to glTF.
 bool writeAssetsToGltf(
 	const char* writePath,
-	LevelAssets& assets,
+	const LevelAssets& assets,
 	const DynArray<uint32_t>& meshIndices) noexcept;
 
 } // namespace ph

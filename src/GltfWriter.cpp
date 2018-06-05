@@ -27,7 +27,256 @@ namespace ph {
 using sfz::DynString;
 using sfz::str320;
 
-// Statics
+// Statics (input processing)
+// ------------------------------------------------------------------------------------------------
+
+struct MeshComponent {
+	DynArray<uint32_t> indices;
+	uint32_t materialIdx;
+};
+
+// Sorts all triangles in a mesh into different components where each component uses only one
+// material. If the entire mesh uses a single material only one component will be returned.
+static DynArray<MeshComponent> componentsFromMesh(const ConstMeshView& mesh) noexcept
+{
+	sfz_assert_debug((mesh.numIndices % 3) == 0);
+
+	DynArray<MeshComponent> components;
+	components.create(10);
+
+	for (uint32_t i = 0; i < mesh.numIndices; i += 3) {
+		uint32_t idx0 = mesh.indices[i + 0];
+		uint32_t idx1 = mesh.indices[i + 1];
+		uint32_t idx2 = mesh.indices[i + 2];
+
+		// Require material to be same for entire triangle
+		uint32_t m0 = mesh.materialIndices[idx0];
+		uint32_t m1 = mesh.materialIndices[idx1];
+		uint32_t m2 = mesh.materialIndices[idx2];
+		sfz_assert_debug(m0 == m1);
+		sfz_assert_debug(m1 == m2);
+
+		// Try to find existing component with same material index
+		DynArray<uint32_t>* indicesPtr = nullptr;
+		for (MeshComponent& component : components) {
+			if (component.materialIdx == m0) {
+				indicesPtr = &component.indices;
+			}
+		}
+
+		// If component did not exist, create it
+		if (indicesPtr == nullptr) {
+			components.add(MeshComponent());
+			components.last().materialIdx = m0;
+			indicesPtr = &components.last().indices;
+			indicesPtr->create(mesh.numIndices);
+		}
+
+		// Add indicies to component
+		indicesPtr->add(idx0);
+		indicesPtr->add(idx1);
+		indicesPtr->add(idx2);
+	}
+
+	return components;
+}
+
+struct SplitMesh {
+	DynArray<Vertex> vertices;
+	DynArray<MeshComponent> components;
+};
+
+// Pick out all meshes from the assets and split them into components
+static DynArray<SplitMesh> splitMeshes(
+	const LevelAssets& assets,
+	const DynArray<uint32_t>& meshIndices) noexcept
+{
+	DynArray<SplitMesh> splitMeshes;
+	splitMeshes.create(meshIndices.size());
+
+	// Go through all meshes, split into components
+	for (uint32_t i = 0; i < meshIndices.size(); i++) {
+		uint32_t meshIdx = meshIndices[i];
+
+		// Print error message and skip if mesh does not exist
+		if (meshIdx >= assets.meshes.size()) {
+			SFZ_ERROR("glTF writer", "Trying to write mesh that does not exist: %u", meshIdx);
+			continue;
+		}
+
+		const Mesh& mesh = assets.meshes[meshIdx];
+		SplitMesh splitMesh;
+
+		// Copy vertices
+		splitMesh.vertices = mesh.vertices;
+		
+		// Split mesh into components
+		splitMesh.components = componentsFromMesh(mesh);
+
+		splitMeshes.add(splitMesh);
+	}
+
+	return splitMeshes;
+}
+
+struct ProcessedAssets {
+	DynArray<SplitMesh> splitMeshes;
+	DynArray<Material> materials;
+	DynArray<uint32_t> textureIndices;
+};
+
+// Process assets that are prepared for writing, this includes:
+//
+// * Spliting meshes into components that only use on material each
+// * Pick out the materials used by the meshes so they can be written
+// * Update components material indices to point to this new material list
+// * Pick out which textures to write to file
+// * Update all indices in materials to point to the new textures list
+static ProcessedAssets processAssets(
+	const LevelAssets& assets, const DynArray<uint32_t>& meshIndices) noexcept
+{
+	// Split meshes
+	ProcessedAssets processedAssets;
+	processedAssets.splitMeshes = splitMeshes(assets, meshIndices);
+
+	// List of material indices to write
+	DynArray<uint32_t> materialIndices;
+
+	// Add materials to write list and modify components to use the new indices
+	for (SplitMesh& splitMesh : processedAssets.splitMeshes) {
+		for (MeshComponent& component : splitMesh.components) {
+
+			// Linear search through materials to write
+			bool materialFound = false;
+			for (uint32_t i = 0; i < materialIndices.size(); i++) {
+				if (materialIndices[i] != component.materialIdx) continue;
+
+				// If material found in list, just update components index and exit
+				component.materialIdx = i;
+				materialFound = true;
+				break;
+			}
+
+			// Add material to write list if not found
+			if (!materialFound) {
+				materialIndices.add(component.materialIdx);
+				processedAssets.materials.add(assets.materials[component.materialIdx]);
+				component.materialIdx = materialIndices.size() - 1;
+			}
+		}
+	}
+
+	// Go through materials to write and find all textures to write, also update texture indices in
+	// materials to reflect their new indices in the gltf file.
+	processedAssets.textureIndices.create(100);
+	for (Material& m : processedAssets.materials) {
+		
+		// Albedo
+		if (m.albedoTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.albedoTexIndex < assets.textures.size());
+			processedAssets.textureIndices.add(m.albedoTexIndex);
+			m.albedoTexIndex = processedAssets.textureIndices.size() - 1;
+		}
+
+		// MetallicRoughness
+		if (m.metallicRoughnessTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.metallicRoughnessTexIndex < assets.textures.size());
+			processedAssets.textureIndices.add(m.metallicRoughnessTexIndex);
+			m.metallicRoughnessTexIndex = processedAssets.textureIndices.size() - 1;
+		}
+
+		// Normal
+		if (m.normalTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.normalTexIndex < assets.textures.size());
+			processedAssets.textureIndices.add(m.normalTexIndex);
+			m.normalTexIndex = processedAssets.textureIndices.size() - 1;
+		}
+
+		// Occlusion
+		if (m.occlusionTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.occlusionTexIndex < assets.textures.size());
+			processedAssets.textureIndices.add(m.occlusionTexIndex);
+			m.occlusionTexIndex = processedAssets.textureIndices.size() - 1;
+		}
+
+		// Emissive
+		if (m.emissiveTexIndex != uint16_t(~0)) {
+			sfz_assert_debug(m.emissiveTexIndex < assets.textures.size());
+			processedAssets.textureIndices.add(m.emissiveTexIndex);
+			m.emissiveTexIndex = processedAssets.textureIndices.size() - 1;
+		}
+	}
+
+	return processedAssets;
+}
+
+struct MeshOffsets {
+	uint32_t posOffset;
+	uint32_t posNumBytes;
+	uint32_t normalOffset;
+	uint32_t normalNumBytes;
+	uint32_t texcoordOffset;
+	uint32_t texcoordNumBytes;
+
+	DynArray<uint32_t> indicesOffsets;
+	DynArray<uint32_t> indicesNumBytes;
+};
+
+struct BinaryData {
+	DynArray<uint8_t> combinedBinaryData;
+	DynArray<MeshOffsets> offsets;
+};
+
+// Creates a single binary data chunk to write to file. This chunk contains all vertex and index
+// data from  the processed assets
+static BinaryData createBinaryMeshData(const ProcessedAssets& processedAssets) noexcept
+{
+	BinaryData data;
+	data.combinedBinaryData.create(32 * 1024 * 1024); // Assume 32 MiB will be enough
+	data.offsets.create(processedAssets.splitMeshes.size());
+
+	for (const SplitMesh& mesh : processedAssets.splitMeshes) {
+
+		MeshOffsets offsets;
+
+		// Positions
+		offsets.posOffset = data.combinedBinaryData.size();
+		for (const Vertex& v : mesh.vertices) {
+			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(&v.pos), sizeof(vec3));
+		}
+		offsets.posNumBytes = data.combinedBinaryData.size() - offsets.posOffset;
+
+		// Normals
+		offsets.normalOffset = data.combinedBinaryData.size();
+		for (const Vertex& v : mesh.vertices) {
+			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(&v.normal), sizeof(vec3));
+		}
+		offsets.normalNumBytes = data.combinedBinaryData.size() - offsets.normalOffset;
+
+		// Texcoord
+		offsets.texcoordOffset = data.combinedBinaryData.size();
+		for (const Vertex& v : mesh.vertices) {
+			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(&v.texcoord), sizeof(vec2));
+		}
+		offsets.texcoordNumBytes = data.combinedBinaryData.size() - offsets.texcoordOffset;
+
+		// Add indices to combined binary data
+		offsets.indicesOffsets.create(mesh.components.size());
+		offsets.indicesNumBytes.create(mesh.components.size());
+		for (const MeshComponent& component : mesh.components) {
+			offsets.indicesOffsets.add(data.combinedBinaryData.size());
+			offsets.indicesNumBytes.add(component.indices.size() * sizeof(uint32_t));
+			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(component.indices.data()),
+				offsets.indicesNumBytes.last());
+		}
+
+		data.offsets.add(offsets);
+	}
+
+	return data;
+}
+
+// Statics (paths)
 // ------------------------------------------------------------------------------------------------
 
 static str320 calculateBasePath(const char* path) noexcept
@@ -80,6 +329,9 @@ static str96 stripFileEnding(const str96& fileName) noexcept
 	return tmp;
 }
 
+// Statics (Writing to file)
+// ------------------------------------------------------------------------------------------------
+
 // Write gltf asset header (non-optional)
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#asset
 static void writeHeader(DynString& gltf) noexcept
@@ -89,57 +341,6 @@ static void writeHeader(DynString& gltf) noexcept
 	gltf.printfAppend("%s", "\t\t\"version\": \"2.0\",\n");
 	gltf.printfAppend("%s", "\t\t\"generator\": \"Phantasy Engine Exporter v1.0\"\n");
 	gltf.printfAppend("%s", "\t},\n");
-}
-
-struct MeshComponent {
-	DynArray<uint32_t> indices;
-	uint32_t materialIdx;
-};
-
-// Sorts all triangles in a mesh into different components where each component uses only one
-// material. If the entire mesh uses a single material only one component will be returned.
-static DynArray<MeshComponent> componentsFromMesh(const ConstMeshView& mesh) noexcept
-{
-	sfz_assert_debug((mesh.numIndices % 3) == 0);
-
-	DynArray<MeshComponent> components;
-	components.create(10);
-
-	for (uint32_t i = 0; i < mesh.numIndices; i += 3) {
-		uint32_t idx0 = mesh.indices[i + 0];
-		uint32_t idx1 = mesh.indices[i + 1];
-		uint32_t idx2 = mesh.indices[i + 2];
-
-		// Require material to be same for entire triangle
-		uint32_t m0 = mesh.materialIndices[idx0];
-		uint32_t m1 = mesh.materialIndices[idx1];
-		uint32_t m2 = mesh.materialIndices[idx2];
-		sfz_assert_debug(m0 == m1);
-		sfz_assert_debug(m1 == m2);
-
-		// Try to find existing component with same material index
-		DynArray<uint32_t>* indicesPtr = nullptr;
-		for (MeshComponent& component : components) {
-			if (component.materialIdx == m0) {
-				indicesPtr = &component.indices;
-			}
-		}
-
-		// If component did not exist, create it
-		if (indicesPtr == nullptr) {
-			components.add(MeshComponent());
-			components.last().materialIdx = m0;
-			indicesPtr = &components.last().indices;
-			indicesPtr->create(mesh.numIndices);
-		}
-
-		// Add indicies to component
-		indicesPtr->add(idx0);
-		indicesPtr->add(idx1);
-		indicesPtr->add(idx2);
-	}
-
-	return components;
 }
 
 static void writeMaterials(DynString& gltf, const DynArray<Material>& materials) noexcept
@@ -235,18 +436,18 @@ static void writeTextures(
 	const char* basePath,
 	const char* baseMainFileName,
 	const LevelAssets& assets,
-	const DynArray<uint32_t>& texIndices) noexcept
+	const ProcessedAssets& processedAssets) noexcept
 {
 	sfz_assert_debug(assets.textures.size() == assets.textureFileMappings.size());
-	if (texIndices.size() == 0) return;
+	if (processedAssets.textureIndices.size() == 0) return;
 
 	// Attempt to create directory for textures if necessary
 	sfz::createDirectory(str320("%s%s", basePath, baseMainFileName));
 
 	// Write "images" section
 	gltf.printfAppend("%s", "\t\"images\": [\n");
-	for (uint32_t i = 0; i < texIndices.size(); i++) {
-		uint32_t originalTexIndex = texIndices[i];
+	for (uint32_t i = 0; i < processedAssets.textureIndices.size(); i++) {
+		uint32_t originalTexIndex = processedAssets.textureIndices[i];
 		const FileMapping& mapping = assets.textureFileMappings[originalTexIndex];
 		str96 fileNameWithoutEnding = stripFileEnding(mapping.fileName);
 
@@ -261,20 +462,215 @@ static void writeTextures(
 		gltf.printfAppend("%s", "\t\t{\n");
 		gltf.printfAppend("\t\t\t\"uri\": \"%s/%s.png\"\n",
 			baseMainFileName, fileNameWithoutEnding.str);
-		if ((i + 1) == texIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
+		if ((i + 1) == processedAssets.textureIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
 		else gltf.printfAppend("%s", "\t\t},\n");
 	}
 	gltf.printfAppend("%s", "\t],\n");
 
 	// Write "textures" section
 	gltf.printfAppend("%s", "\t\"textures\": [\n");
-	for (uint32_t i = 0; i < texIndices.size(); i++) {
+	for (uint32_t i = 0; i < processedAssets.textureIndices.size(); i++) {
 		gltf.printfAppend("%s", "\t\t{\n");
 		gltf.printfAppend("\t\t\t\"source\": %u\n", i);
-		if ((i + 1) == texIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
+		if ((i + 1) == processedAssets.textureIndices.size()) gltf.printfAppend("%s", "\t\t}\n");
 		else gltf.printfAppend("%s", "\t\t},\n");
 	}
 	gltf.printfAppend("%s", "\t],\n");
+}
+
+static bool writeMeshes(
+	DynString& gltf,
+	const char* basePath,
+	const char* baseMainFileName,
+	const LevelAssets& assets,
+	const ProcessedAssets& processedAssets,
+	const BinaryData& binaryData) noexcept
+{
+	// Write binary data to file
+	bool binaryWriteSuccess = sfz::writeBinaryFile(
+		str320("%s%s/%s.bin", basePath, baseMainFileName, baseMainFileName),
+		binaryData.combinedBinaryData.data(),
+		binaryData.combinedBinaryData.size());
+	if (!binaryWriteSuccess) {
+		SFZ_ERROR("glTF writer", "Failed to write binary data to file: \"%s\"",
+			str320("%s%s.bin", basePath, baseMainFileName).str);
+		return false;
+	}
+
+	// Write "buffers" section
+	gltf.printfAppend("%s", "\t\"buffers\": [\n");
+	gltf.printfAppend("%s", "\t\t{\n");
+	gltf.printfAppend("\t\t\t\"uri\": \"%s/%s.bin\",\n", baseMainFileName, baseMainFileName);
+	gltf.printfAppend("\t\t\t\"byteLength\": %u\n", binaryData.combinedBinaryData.size());
+	gltf.printfAppend("%s", "\t\t}\n");
+	gltf.printfAppend("%s", "\t],\n");
+
+	// Write "bufferViews" section
+	gltf.printfAppend("%s", "\t\"bufferViews\": [\n");
+	for (uint32_t i = 0; i < binaryData.offsets.size(); i++) {
+		const MeshOffsets& offsets = binaryData.offsets[i];
+
+		// Positions
+		gltf.printfAppend("%s", "\n\t\t{\n");
+		gltf.printfAppend("%s", "\t\t\t\"buffer\": 0,\n");
+		gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", offsets.posOffset);
+		gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", offsets.posNumBytes);
+		gltf.printfAppend("\t\t\t\"byteStride\": %u,\n", uint32_t(sizeof(vec3)));
+		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER 
+		gltf.printfAppend("%s", "\t\t},\n");
+
+		// Normals
+		gltf.printfAppend("%s", "\t\t{\n");
+		gltf.printfAppend("%s", "\t\t\t\"buffer\": 0,\n");
+		gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", offsets.normalOffset);
+		gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", offsets.normalNumBytes);
+		gltf.printfAppend("\t\t\t\"byteStride\": %u,\n", uint32_t(sizeof(vec3)));
+		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER 
+		gltf.printfAppend("%s", "\t\t},\n");
+
+		// Texcoords
+		gltf.printfAppend("%s", "\t\t{\n");
+		gltf.printfAppend("%s", "\t\t\t\"buffer\": 0,\n");
+		gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", offsets.texcoordOffset);
+		gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", offsets.texcoordNumBytes);
+		gltf.printfAppend("\t\t\t\"byteStride\": %u,\n", uint32_t(sizeof(vec2)));
+		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER 
+		gltf.printfAppend("%s", "\t\t},\n");
+
+		// Indices
+		for (uint32_t j = 0; j < offsets.indicesOffsets.size(); j++) {
+			uint32_t indexOffset = offsets.indicesOffsets[j];
+			uint32_t indexNumBytes = offsets.indicesNumBytes[j];
+
+			gltf.printfAppend("%s", "\t\t{\n");
+			gltf.printfAppend("%s", "\t\t\t\"buffer\": 0,\n");
+			gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", indexOffset);
+			gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", indexNumBytes);
+			gltf.printfAppend("%s", "\t\t\t\"target\": 34963\n"); // ELEMENT_ARRAY_BUFFER
+			if ((i + 1) == binaryData.offsets.size() && (j + 1) == offsets.indicesOffsets.size()) {
+				gltf.printfAppend("%s", "\t\t}\n");
+			}
+			else {
+				gltf.printfAppend("%s", "\t\t},\n");
+			}
+		}
+	}
+	gltf.printfAppend("%s", "\t],\n");
+
+	// Write "accessors" section
+	gltf.printfAppend("%s", "\t\"accessors\": [\n");
+	uint32_t bufferViewIdx = 0;
+	for (uint32_t i = 0; i < binaryData.offsets.size(); i++) {
+		const MeshOffsets& offsets = binaryData.offsets[i];
+
+		// Positions
+		gltf.printfAppend("%s", "\n\t\t{\n");
+		gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
+		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
+		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5164,\n"); // FLOAT
+		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC3\",\n");
+		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.posNumBytes / sizeof(vec3));
+		gltf.printfAppend("%s", "\t\t},\n");
+		bufferViewIdx += 1;
+
+		// Normals
+		gltf.printfAppend("%s", "\t\t{\n");
+		gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
+		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
+		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5164,\n"); // FLOAT
+		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC3\",\n");
+		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.normalNumBytes / sizeof(vec3));
+		gltf.printfAppend("%s", "\t\t},\n");
+		bufferViewIdx += 1;
+
+		// Texcoords
+		gltf.printfAppend("%s", "\t\t{\n");
+		gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
+		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
+		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5164,\n"); // FLOAT
+		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC2\",\n");
+		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.texcoordNumBytes / sizeof(vec2));
+		gltf.printfAppend("%s", "\t\t},\n");
+		bufferViewIdx += 1;
+
+		for (uint32_t j = 0; j < offsets.indicesOffsets.size(); j++) {
+			uint32_t indexNumBytes = offsets.indicesNumBytes[j];
+
+			gltf.printfAppend("%s", "\t\t{\n");
+			gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
+			gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
+			gltf.printfAppend("%s", "\t\t\t\"componentType\": 5125,\n"); // UNSIGNED INT
+			gltf.printfAppend("%s", "\t\t\t\"type\": \"SCALAR\",\n");
+			gltf.printfAppend("\t\t\t\"count\": %u\n", indexNumBytes / sizeof(uint32_t));
+			if ((i + 1) == binaryData.offsets.size() && (j + 1) == offsets.indicesOffsets.size()) {
+				gltf.printfAppend("%s", "\t\t}\n");
+			}
+			else {
+				gltf.printfAppend("%s", "\t\t},\n");
+			}
+			bufferViewIdx += 1;
+		}
+	}
+	gltf.printfAppend("%s", "\t],\n");
+
+
+	// Write "meshes" section
+	gltf.printfAppend("%s", "\t\"meshes\": [\n");
+	sfz_assert_debug(processedAssets.splitMeshes.size() == binaryData.offsets.size());
+	uint32_t accessorIdx = 0;
+	for (uint32_t i = 0; i < processedAssets.splitMeshes.size(); i++) {
+		const SplitMesh& splitMesh = processedAssets.splitMeshes[i];
+		const MeshOffsets& offsets = binaryData.offsets[i];
+		
+		gltf.printfAppend("%s", "\t\t{\n");
+
+		// Mesh name
+		gltf.printfAppend("\t\t\t\"name\": \"%s\",\n", "UNKNOWN NAME");
+
+		str320 meshPrimitiveCommon;
+		meshPrimitiveCommon.printf("%s", "\t\t\t\t\t\"attributes\": {\n");
+		meshPrimitiveCommon.printfAppend("\t\t\t\t\t\t\"POSITION\": %u,\n", accessorIdx);
+		accessorIdx++;
+		meshPrimitiveCommon.printfAppend("\t\t\t\t\t\t\"NORMAL\": %u,\n", accessorIdx);
+		accessorIdx++;
+		meshPrimitiveCommon.printfAppend("\t\t\t\t\t\t\"TEXCOORD_0\": %u\n", accessorIdx);
+		accessorIdx++;
+		meshPrimitiveCommon.printfAppend("%s", "\t\t\t\t\t},\n");
+
+		// Primitives (components)
+		gltf.printfAppend("%s", "\t\t\t\"primitives\": [\n");
+
+		sfz_assert_debug(splitMesh.components.size() == offsets.indicesOffsets.size());
+		for (uint32_t j = 0; j < splitMesh.components.size(); j++) {
+			const MeshComponent& component = splitMesh.components[j];
+			
+			gltf.printfAppend("%s", "\t\t\t\t{\n");
+			gltf.printfAppend("%s", meshPrimitiveCommon.str);
+			gltf.printfAppend("\t\t\t\t\t\"indices\": %u,\n", accessorIdx);
+			accessorIdx++;
+			gltf.printfAppend("\t\t\t\t\t\"material\": %u\n", component.materialIdx);
+
+			if ((j + 1) == splitMesh.components.size()) {
+				gltf.printfAppend("%s", "\t\t\t\t}\n");
+			}
+			else {
+				gltf.printfAppend("%s", "\t\t\t\t},\n");
+			}
+		}
+
+		gltf.printfAppend("\t\t\t]\n");
+
+		if ((i + 1) == processedAssets.splitMeshes.size()) {
+			gltf.printfAppend("%s", "\t\t}\n");
+		}
+		else {
+			gltf.printfAppend("%s", "\t\t},\n");
+		}
+		
+	}
+	gltf.printfAppend("%s", "\t]\n");
+
+	return true;
 }
 
 static void writeExit(DynString& gltf) noexcept
@@ -287,7 +683,7 @@ static void writeExit(DynString& gltf) noexcept
 
 bool writeAssetsToGltf(
 	const char* writePath,
-	LevelAssets& assets,
+	const LevelAssets& assets,
 	const DynArray<uint32_t>& meshIndices) noexcept
 {
 	// Try to create base directory if it does not exist
@@ -303,157 +699,40 @@ bool writeAssetsToGltf(
 	// Get file name
 	str96 fileNameWithoutEnding = stripFileEnding(getFileName(writePath));
 
-	// Calculate how many bytes will be needed for writing the binary data
-	uint32_t numBytesCombinedBinaryData = 0;
-	for (uint32_t i = 0; i < meshIndices.size(); i++) {
-		uint32_t meshIdx = meshIndices[i];
-		const Mesh& mesh = assets.meshes[meshIdx];
-		numBytesCombinedBinaryData += mesh.vertices.size() * sizeof(Vertex);
-		numBytesCombinedBinaryData += mesh.indices.size() * sizeof(uint32_t);
-	}
+	// Process assets to write
+	ProcessedAssets processedAssets = processAssets(assets, meshIndices);
 
-	// Allocate memory for writing (plus some extra)
-	DynArray<uint8_t> combinedBinaryData(numBytesCombinedBinaryData + 8192);
-
-	// Offsets into combined binary data array
-	struct MeshOffsets {
-		uint32_t vertexOffset;
-		DynArray<uint32_t> indicesOffsets;
-	};
-	DynArray<MeshOffsets> binaryOffsets(meshIndices.size());
+	// Create binary data from the processed assets
+	BinaryData binaryData = createBinaryMeshData(processedAssets);
 
 	// Create gltf string to fill in
-	const uint32_t GLTF_MAX_CAPACITY = 10 * 1024 * 1024; // Assume max 10 MiB for the .gltf file
+	const uint32_t GLTF_MAX_CAPACITY = 32 * 1024 * 1024; // Assume max 32 MiB for the .gltf file
 	sfz::DynString tempGltfString("", GLTF_MAX_CAPACITY);
 
+	// Write header
 	writeHeader(tempGltfString);
 
-	// Information about which materials to write
-	DynArray<Material> materialsToWrite;
-	DynArray<uint32_t> materialsOriginalIndex;
-	materialsToWrite.create(100);
-	materialsOriginalIndex.create(100);
-	
-	// Go through all meshes, split into components and combine into combined binary data
-	for (uint32_t i = 0; i < meshIndices.size(); i++) {
-		uint32_t meshIdx = meshIndices[i];
+	// Write materials and textures
+	writeMaterials(tempGltfString, processedAssets.materials);
+	writeTextures(tempGltfString, basePath, fileNameWithoutEnding.str, assets, processedAssets);
 
-		// Print error message and skip if mesh does not exist
-		if (meshIdx >= assets.meshes.size()) {
-			SFZ_ERROR("glTF writer", "Trying to write mesh that does not exist: %u", meshIdx);
-			continue;
-		}
-
-		// Split mesh into components
-		const Mesh& mesh = assets.meshes[meshIdx];
-		DynArray<MeshComponent> components = componentsFromMesh(mesh);
-
-		// Add new materials from components materials to write list and modify component to use
-		// the new indices
-		for (MeshComponent& component : components) {
-			
-			// Linear search through materials to write
-			bool materialFound = false;
-			for (uint32_t j = 0; j < materialsOriginalIndex.size(); j++) {
-				if (materialsOriginalIndex[j] != component.materialIdx) continue;
-				component.materialIdx = j;
-				materialFound = true;
-				break;
-			}
-
-			// Add material if not in list
-			if (!materialFound) {
-				materialsToWrite.add(assets.materials[component.materialIdx]);
-				materialsOriginalIndex.add(component.materialIdx);
-				component.materialIdx = materialsToWrite.size() - 1;
-			}
-		}
-
-		// Add vertex data to combined binary data
-		MeshOffsets offsets;
-		offsets.vertexOffset = combinedBinaryData.size();
-		combinedBinaryData.add(reinterpret_cast<const uint8_t*>(mesh.vertices.data()),
-			mesh.vertices.size() * sizeof(Vertex));
-		
-		// Add indices to combined binary data
-		offsets.indicesOffsets.create(components.size());
-		for (const MeshComponent& component : components) {
-			offsets.indicesOffsets.add(combinedBinaryData.size());
-			combinedBinaryData.add(reinterpret_cast<const uint8_t*>(component.indices.data()),
-				component.indices.size() * sizeof(uint32_t));
-		}
-	}
-
-	// Write binary data to file
-	bool binaryWriteSuccess = sfz::writeBinaryFile(
-		str320("%s%s/%s.bin", basePath.str, fileNameWithoutEnding.str, fileNameWithoutEnding.str),
-		combinedBinaryData.data(),
-		combinedBinaryData.size());
-	if (!binaryWriteSuccess) {
-		SFZ_ERROR("glTF writer", "Failed to write binary data to file: \"%s\"",
-			str320("%s%s.bin", basePath.str, fileNameWithoutEnding.str).str);
+	// Write meshes
+	if (!writeMeshes(
+		tempGltfString, basePath, fileNameWithoutEnding, assets, processedAssets, binaryData)) {
 		return false;
 	}
 
-	// Go through materials to write and find all textures to write, also update texture indices in
-	// materials to reflect their new indices in the gltf file.
-	DynArray<uint32_t> texturesToWrite;
-	texturesToWrite.create(100);
-	for (uint32_t i = 0; i < materialsToWrite.size(); i++) {
-		Material& m = materialsToWrite[i];
-
-		// Albedo
-		if (m.albedoTexIndex != uint16_t(~0)) {
-			sfz_assert_debug(m.albedoTexIndex < assets.textures.size());
-			texturesToWrite.add(m.albedoTexIndex);
-			m.albedoTexIndex = texturesToWrite.size() - 1;
-		}
-
-		// MetallicRoughness
-		if (m.metallicRoughnessTexIndex != uint16_t(~0)) {
-			sfz_assert_debug(m.metallicRoughnessTexIndex < assets.textures.size());
-			texturesToWrite.add(m.metallicRoughnessTexIndex);
-			m.metallicRoughnessTexIndex = texturesToWrite.size() - 1;
-		}
-
-		// Normal
-		if (m.normalTexIndex != uint16_t(~0)) {
-			sfz_assert_debug(m.normalTexIndex < assets.textures.size());
-			texturesToWrite.add(m.normalTexIndex);
-			m.normalTexIndex = texturesToWrite.size() - 1;
-		}
-
-		// Occlusion
-		if (m.occlusionTexIndex != uint16_t(~0)) {
-			sfz_assert_debug(m.occlusionTexIndex < assets.textures.size());
-			texturesToWrite.add(m.occlusionTexIndex);
-			m.occlusionTexIndex = texturesToWrite.size() - 1;
-		}
-
-		// Emissive
-		if (m.emissiveTexIndex != uint16_t(~0)) {
-			sfz_assert_debug(m.emissiveTexIndex < assets.textures.size());
-			texturesToWrite.add(m.emissiveTexIndex);
-			m.emissiveTexIndex = texturesToWrite.size() - 1;
-		}
-	}
-
-	// Write materials
-	writeMaterials(tempGltfString, materialsToWrite);
-
-	// Write textures
-	writeTextures(tempGltfString, basePath, fileNameWithoutEnding.str, assets, texturesToWrite);
-
+	// Write JSON ending
 	writeExit(tempGltfString);
 
+	// Write gltf json to file
 	bool writeSuccess = sfz::writeTextFile(writePath, tempGltfString.str());
 	if (!writeSuccess) {
 		SFZ_ERROR("glTF writer", "Failed to write to \"%s\"", writePath);
 		return false;
 	}
 
-
-	return false;
+	return true;
 }
 
 } // namespace ph
