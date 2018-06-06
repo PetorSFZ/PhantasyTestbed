@@ -44,6 +44,12 @@ using sfz::str320;
 // Statics
 // ------------------------------------------------------------------------------------------------
 
+static bool dummyLoadImageDataFunction(
+	tinygltf::Image *, std::string *, int, int, const unsigned char *, int, void *) 
+{
+	return true; 
+}
+
 static str320 calculateBasePath(const char* path) noexcept
 {
 	str320 str("%s", path);
@@ -180,6 +186,37 @@ static vec4_u8 toSfz(const tinygltf::ColorValue& val) noexcept
 	return tmp;
 }
 
+static void getBasePathAndFileName(const str320& path, str256& dirPath, str96& fileName) noexcept
+{
+	dirPath.printf("%s", path.str);
+
+	// Go through path until the path separator is found
+	bool success = false;
+	for (uint32_t i = path.size() - 1; i > 0; i--) {
+		const char c = path.str[i - 1];
+		if (c == '\\' || c == '/') {
+			dirPath.str[i] = '\0';
+			fileName.printf("%s", path.str + i);
+			success = true;
+			break;
+		}
+	}
+
+	// If no path separator is found, assume we have no base path
+	if (!success) {
+		dirPath.printf("");
+		fileName.printf("%s", path.str);
+	}
+}
+
+static FileMapping createFileMapping(const char* path) noexcept
+{
+	FileMapping mapping;
+	mapping.hasFileMapping = true;
+	getBasePathAndFileName(str320("%s", path), mapping.dirPath, mapping.fileName);
+	return mapping;
+}
+
 static bool extractAssets(
 	const char* basePath, const tinygltf::Model& model, LevelAssets& assets) noexcept
 {
@@ -214,6 +251,9 @@ static bool extractAssets(
 		// Add texture to assets and record its global index in texMapping
 		assets.textures.add(std::move(phImage));
 		texMapping[img.uri.c_str()] = texBaseIndex + i;
+
+		// Add file mapping
+		assets.textureFileMappings.add(createFileMapping(img.uri.c_str()));
 	}
 
 	// Load materials
@@ -414,8 +454,11 @@ bool loadAssetsFromGltf(
 {
 	str320 basePath = calculateBasePath(gltfPath);
 
-	// Read model from file
+	// Initializing loader with dummy image loader function
 	tinygltf::TinyGLTF loader;
+	loader.SetImageLoader(dummyLoadImageDataFunction, nullptr);
+
+	// Read model from file
 	tinygltf::Model model;
 	std::string error;
 	bool result = loader.LoadASCIIFromFile(&model, &error, gltfPath);
