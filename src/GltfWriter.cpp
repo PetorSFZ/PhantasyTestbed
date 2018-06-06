@@ -567,7 +567,7 @@ static bool writeMeshes(
 		gltf.printfAppend("%s", "\n\t\t{\n");
 		gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
 		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
-		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5164,\n"); // FLOAT
+		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5126,\n"); // FLOAT
 		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC3\",\n");
 		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.posNumBytes / sizeof(vec3));
 		gltf.printfAppend("%s", "\t\t},\n");
@@ -577,7 +577,7 @@ static bool writeMeshes(
 		gltf.printfAppend("%s", "\t\t{\n");
 		gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
 		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
-		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5164,\n"); // FLOAT
+		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5126,\n"); // FLOAT
 		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC3\",\n");
 		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.normalNumBytes / sizeof(vec3));
 		gltf.printfAppend("%s", "\t\t},\n");
@@ -587,7 +587,7 @@ static bool writeMeshes(
 		gltf.printfAppend("%s", "\t\t{\n");
 		gltf.printfAppend("\t\t\t\"bufferView\": %u,\n", bufferViewIdx);
 		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
-		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5164,\n"); // FLOAT
+		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5126,\n"); // FLOAT
 		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC2\",\n");
 		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.texcoordNumBytes / sizeof(vec2));
 		gltf.printfAppend("%s", "\t\t},\n");
@@ -668,9 +668,48 @@ static bool writeMeshes(
 		}
 		
 	}
-	gltf.printfAppend("%s", "\t]\n");
+	gltf.printfAppend("%s", "\t],\n");
 
 	return true;
+}
+
+static void writeScenes(DynString& gltf, const ProcessedAssets& processedAssets) noexcept
+{
+	// Write nodes
+	gltf.printfAppend("%s", "\t\"nodes\": [\n");
+	for (uint32_t i = 0; i < processedAssets.splitMeshes.size(); i++) {
+		gltf.printfAppend("%s", "\t\t{\n");
+
+		gltf.printfAppend("\t\t\t\"mesh\": %u\n", i);
+
+		if ((i + 1) == processedAssets.splitMeshes.size()) {
+			gltf.printfAppend("%s", "\t\t}\n");
+		}
+		else {
+			gltf.printfAppend("%s", "\t\t},\n");
+		}
+	}
+	gltf.printfAppend("%s", "\t],\n");
+
+
+	// Default scene
+	gltf.printfAppend("%s", "\t\"scene\": 0,\n");
+
+	// Scenes (only one)
+	gltf.printfAppend("%s", "\t\"scenes\": [\n");
+	gltf.printfAppend("%s", "\t\t{\n");
+	gltf.printfAppend("%s", "\t\t\t\"nodes\": [\n");
+	for (uint32_t i = 0; i < processedAssets.splitMeshes.size(); i++) {
+		if((i + 1) == processedAssets.splitMeshes.size()) {
+			gltf.printfAppend("\t\t\t\t%u\n", i);
+		}
+		else {
+			gltf.printfAppend("\t\t\t\t%u,\n", i);
+		}
+	}
+	gltf.printfAppend("%s", "\t\t\t]\n");
+	gltf.printfAppend("%s", "\t\t}\n");
+	gltf.printfAppend("%s", "\t]\n");
 }
 
 static void writeExit(DynString& gltf) noexcept
@@ -706,7 +745,7 @@ bool writeAssetsToGltf(
 	BinaryData binaryData = createBinaryMeshData(processedAssets);
 
 	// Create gltf string to fill in
-	const uint32_t GLTF_MAX_CAPACITY = 32 * 1024 * 1024; // Assume max 32 MiB for the .gltf file
+	const uint32_t GLTF_MAX_CAPACITY = 16 * 1024 * 1024; // Assume max 16 MiB for the .gltf file
 	sfz::DynString tempGltfString("", GLTF_MAX_CAPACITY);
 
 	// Write header
@@ -721,6 +760,9 @@ bool writeAssetsToGltf(
 		tempGltfString, basePath, fileNameWithoutEnding, assets, processedAssets, binaryData)) {
 		return false;
 	}
+
+	// Write scenes
+	writeScenes(tempGltfString, processedAssets);
 
 	// Write JSON ending
 	writeExit(tempGltfString);
