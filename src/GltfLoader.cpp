@@ -222,7 +222,7 @@ static bool extractAssets(
 {
 	// Load textures
 	HashMap<str320, uint32_t> texMapping;
-	const uint32_t texBaseIndex = assets.textures.size();
+	DynArray<uint32_t> localToGlobalTexIndex(uint32_t(model.textures.size()));
 	for (uint32_t i = 0; i < model.textures.size(); i++) {
 		const tinygltf::Texture& tex = model.textures[i];
 		const tinygltf::Image& img = model.images[tex.source];
@@ -234,8 +234,9 @@ static bool extractAssets(
 		//int wrapT = sampler.wrapT; // ["CLAMP_TO_EDGE", "MIRRORED_REPEAT", "REPEAT"], default "REPEAT"
 
 		// Check if texture has already been read
-		if (texMapping.get(img.uri.c_str()) != nullptr) {
-			SFZ_ERROR("tinygltf", "%s", "Uh oh, same texture twice???");
+		const uint32_t* texMappingIndexPtr = texMapping.get(img.uri.c_str());
+		if (texMappingIndexPtr != nullptr) {
+			localToGlobalTexIndex.add(*texMappingIndexPtr);
 			continue;
 		}
 
@@ -249,8 +250,10 @@ static bool extractAssets(
 		}
 
 		// Add texture to assets and record its global index in texMapping
+		uint32_t globalTexIndex = assets.textures.size();
 		assets.textures.add(std::move(phImage));
-		texMapping[img.uri.c_str()] = texBaseIndex + i;
+		texMapping[img.uri.c_str()] = globalTexIndex;
+		localToGlobalTexIndex.add(globalTexIndex);
 
 		// Add file mapping
 		assets.textureFileMappings.add(createFileMapping(img.uri.c_str()));
@@ -285,7 +288,7 @@ static bool extractAssets(
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			phMat.albedoTexIndex = texBaseIndex + uint32_t(texIndex);
+			phMat.albedoTexIndex = localToGlobalTexIndex[texIndex];
 			// TODO: Store which texcoords to use
 		}
 
@@ -315,7 +318,7 @@ static bool extractAssets(
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			phMat.metallicRoughnessTexIndex = texBaseIndex + uint32_t(texIndex);
+			phMat.metallicRoughnessTexIndex = localToGlobalTexIndex[texIndex];
 			// TODO: Store which texcoords to use
 		}
 
@@ -327,7 +330,7 @@ static bool extractAssets(
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			phMat.normalTexIndex = texBaseIndex + uint32_t(texIndex);
+			phMat.normalTexIndex = localToGlobalTexIndex[texIndex];
 			// TODO: Store which texcoords to use
 		}
 
@@ -339,7 +342,7 @@ static bool extractAssets(
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			phMat.occlusionTexIndex = texBaseIndex + uint32_t(texIndex);
+			phMat.occlusionTexIndex = localToGlobalTexIndex[texIndex];
 			// TODO: Store which texcoords to use
 		}
 
@@ -351,7 +354,7 @@ static bool extractAssets(
 				SFZ_ERROR("tinygltf", "Bad texture index for material %u", i);
 				continue;
 			}
-			phMat.emissiveTexIndex = texBaseIndex + uint32_t(texIndex);
+			phMat.emissiveTexIndex = localToGlobalTexIndex[texIndex];
 			// TODO: Store which texcoords to use
 		}
 
