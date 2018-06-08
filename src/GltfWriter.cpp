@@ -19,6 +19,7 @@
 #include "GltfWriter.hpp"
 
 #include <sfz/Logging.hpp>
+#include <sfz/math/MathSupport.hpp>
 #include <sfz/strings/StackString.hpp>
 #include <sfz/util/IO.hpp>
 
@@ -84,6 +85,8 @@ static DynArray<MeshComponent> componentsFromMesh(const ConstMeshView& mesh) noe
 struct SplitMesh {
 	DynArray<Vertex> vertices;
 	DynArray<MeshComponent> components;
+	vec3 posMin = vec3(FLT_MAX);
+	vec3 posMax = vec3(-FLT_MAX);
 };
 
 // Pick out all meshes from the assets and split them into components
@@ -112,6 +115,14 @@ static DynArray<SplitMesh> splitMeshes(
 		
 		// Split mesh into components
 		splitMesh.components = componentsFromMesh(mesh);
+
+		// Find min and max elements
+		for (const Vertex& v : splitMesh.vertices) {
+			splitMesh.posMax = sfz::max(splitMesh.posMax, v.pos);
+			splitMesh.posMin = sfz::min(splitMesh.posMin, v.pos);
+		}
+		//splitMesh.posMax += vec3(0.1f);
+		//splitMesh.posMin -= vec3(0.1f);
 
 		splitMeshes.add(splitMesh);
 	}
@@ -562,6 +573,7 @@ static bool writeMeshes(
 	uint32_t bufferViewIdx = 0;
 	for (uint32_t i = 0; i < binaryData.offsets.size(); i++) {
 		const MeshOffsets& offsets = binaryData.offsets[i];
+		const SplitMesh& splitMesh = processedAssets.splitMeshes[i];
 
 		// Positions
 		gltf.printfAppend("%s", "\n\t\t{\n");
@@ -569,7 +581,17 @@ static bool writeMeshes(
 		gltf.printfAppend("%s", "\t\t\t\"byteOffset\": 0,\n");
 		gltf.printfAppend("%s", "\t\t\t\"componentType\": 5126,\n"); // FLOAT
 		gltf.printfAppend("%s", "\t\t\t\"type\": \"VEC3\",\n");
-		gltf.printfAppend("\t\t\t\"count\": %u\n", offsets.posNumBytes / sizeof(vec3));
+		gltf.printfAppend("\t\t\t\"count\": %u,\n", offsets.posNumBytes / sizeof(vec3));
+		gltf.printfAppend("%s", "\t\t\t\"min\": [\n");
+		gltf.printfAppend("\t\t\t\t%.18f,\n", splitMesh.posMin.x);
+		gltf.printfAppend("\t\t\t\t%.18f,\n", splitMesh.posMin.y);
+		gltf.printfAppend("\t\t\t\t%.18f\n", splitMesh.posMin.z);
+		gltf.printfAppend("%s", "\t\t\t],\n");
+		gltf.printfAppend("%s", "\t\t\t\"max\": [\n");
+		gltf.printfAppend("\t\t\t\t%.18f,\n", splitMesh.posMax.x);
+		gltf.printfAppend("\t\t\t\t%.18f,\n", splitMesh.posMax.y);
+		gltf.printfAppend("\t\t\t\t%.18f\n", splitMesh.posMax.z);
+		gltf.printfAppend("%s", "\t\t\t]\n");
 		gltf.printfAppend("%s", "\t\t},\n");
 		bufferViewIdx += 1;
 

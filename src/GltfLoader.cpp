@@ -245,7 +245,8 @@ static bool extractAssets(
 		if (phImage.rawData.data() == nullptr) {
 			SFZ_ERROR("tinygltf", "Could not load texture: %s", img.uri.c_str());
 			continue;
-		} else {
+		}
+		else {
 			SFZ_INFO_NOISY("tinygltf", "Loaded texture: %s", img.uri.c_str());
 		}
 
