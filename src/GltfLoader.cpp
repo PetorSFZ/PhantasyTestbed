@@ -45,9 +45,9 @@ using sfz::str320;
 // ------------------------------------------------------------------------------------------------
 
 static bool dummyLoadImageDataFunction(
-	tinygltf::Image *, std::string *, int, int, const unsigned char *, int, void *) 
+	tinygltf::Image *, std::string *, int, int, const unsigned char *, int, void *)
 {
-	return true; 
+	return true;
 }
 
 static str320 calculateBasePath(const char* path) noexcept
@@ -357,6 +357,11 @@ static bool extractAssets(
 			}
 			phMat.emissiveTexIndex = localToGlobalTexIndex[texIndex];
 			// TODO: Store which texcoords to use
+		}
+
+		// Remove default emissive factor if no emissive is specified
+		if (phMat.emissiveTexIndex == uint16_t(~0) && hasParamAdditionalValues("emissiveFactor")) {
+			phMat.emissive = vec3_u8(uint8_t(0));
 		}
 
 		// Add material to assets
