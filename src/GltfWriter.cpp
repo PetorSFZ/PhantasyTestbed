@@ -18,6 +18,8 @@
 
 #include "GltfWriter.hpp"
 
+#include <cfloat>
+
 #include <sfz/Logging.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/strings/StackString.hpp>
@@ -112,7 +114,7 @@ static DynArray<SplitMesh> splitMeshes(
 
 		// Copy vertices
 		splitMesh.vertices = mesh.vertices;
-		
+
 		// Split mesh into components
 		splitMesh.components = componentsFromMesh(mesh);
 
@@ -181,7 +183,7 @@ static ProcessedAssets processAssets(
 	// materials to reflect their new indices in the gltf file.
 	processedAssets.textureIndices.create(100);
 	for (Material& m : processedAssets.materials) {
-		
+
 		// Albedo
 		if (m.albedoTexIndex != uint16_t(~0)) {
 			sfz_assert_debug(m.albedoTexIndex < assets.textures.size());
@@ -366,7 +368,7 @@ static void writeMaterials(DynString& gltf, const DynArray<Material>& materials)
 		const Material& m = materials[i];
 
 		gltf.printfAppend("%s", "\t\t{\n");
-	
+
 		// Name
 		gltf.printfAppend("\t\t\t\"name\": \"%s\",\n", "UnknownMaterialName");
 
@@ -527,7 +529,7 @@ static bool writeMeshes(
 		gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", offsets.posOffset);
 		gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", offsets.posNumBytes);
 		gltf.printfAppend("\t\t\t\"byteStride\": %u,\n", uint32_t(sizeof(vec3)));
-		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER 
+		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER
 		gltf.printfAppend("%s", "\t\t},\n");
 
 		// Normals
@@ -536,7 +538,7 @@ static bool writeMeshes(
 		gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", offsets.normalOffset);
 		gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", offsets.normalNumBytes);
 		gltf.printfAppend("\t\t\t\"byteStride\": %u,\n", uint32_t(sizeof(vec3)));
-		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER 
+		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER
 		gltf.printfAppend("%s", "\t\t},\n");
 
 		// Texcoords
@@ -545,7 +547,7 @@ static bool writeMeshes(
 		gltf.printfAppend("\t\t\t\"byteOffset\": %u,\n", offsets.texcoordOffset);
 		gltf.printfAppend("\t\t\t\"byteLength\": %u,\n", offsets.texcoordNumBytes);
 		gltf.printfAppend("\t\t\t\"byteStride\": %u,\n", uint32_t(sizeof(vec2)));
-		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER 
+		gltf.printfAppend("%s", "\t\t\t\"target\": 34962\n"); // ARRAY_BUFFER
 		gltf.printfAppend("%s", "\t\t},\n");
 
 		// Indices
@@ -643,7 +645,7 @@ static bool writeMeshes(
 	for (uint32_t i = 0; i < processedAssets.splitMeshes.size(); i++) {
 		const SplitMesh& splitMesh = processedAssets.splitMeshes[i];
 		const MeshOffsets& offsets = binaryData.offsets[i];
-		
+
 		gltf.printfAppend("%s", "\t\t{\n");
 
 		// Mesh name
@@ -665,7 +667,7 @@ static bool writeMeshes(
 		sfz_assert_debug(splitMesh.components.size() == offsets.indicesOffsets.size());
 		for (uint32_t j = 0; j < splitMesh.components.size(); j++) {
 			const MeshComponent& component = splitMesh.components[j];
-			
+
 			gltf.printfAppend("%s", "\t\t\t\t{\n");
 			gltf.printfAppend("%s", meshPrimitiveCommon.str);
 			gltf.printfAppend("\t\t\t\t\t\"indices\": %u,\n", accessorIdx);
@@ -688,7 +690,7 @@ static bool writeMeshes(
 		else {
 			gltf.printfAppend("%s", "\t\t},\n");
 		}
-		
+
 	}
 	gltf.printfAppend("%s", "\t],\n");
 
