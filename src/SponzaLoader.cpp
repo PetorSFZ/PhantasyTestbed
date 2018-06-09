@@ -101,7 +101,10 @@ static void processNode(
 
 		const aiMesh* mesh = scene->mMeshes[node->mMeshes[meshIndex]];
 		Mesh meshTmp;
+
+		// Set standard material properties
 		Material materialTmp;
+		materialTmp.emissive = vec3_u8(0, 0, 0);
 
 		// Allocate memory for vertices
 		meshTmp.vertices.addMany(mesh->mNumVertices);
@@ -149,9 +152,11 @@ static void processNode(
 			}
 			materialTmp.albedoTexIndex = *indexPtr;
 		}
-		aiColor3D color(0.0f, 0.0f, 0.0f);
-		mat->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-		materialTmp.albedo = toSFZ(color);
+		else {
+			aiColor3D color(0.0f, 0.0f, 0.0f);
+			mat->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+			materialTmp.albedo = toSFZ(color);
+		}
 
 		// Roughness and metallic
 		// Roughness stored in map_Ns, specular highlight component
@@ -194,7 +199,7 @@ static void processNode(
 				combined.width = roughnessImage.width;
 				combined.height = roughnessImage.height;
 				combined.bytesPerPixel = 2;
-				
+
 				for (uint32_t i = 0; i < roughnessImage.rawData.size(); i++) {
 					uint8_t roughness = roughnessImage.rawData[i];
 					uint8_t metallic = metallicImage.rawData[i];
@@ -207,13 +212,15 @@ static void processNode(
 			}
 			materialTmp.metallicRoughnessTexIndex = uint16_t(*indexPtr);
 		}
-		color = aiColor3D(0.0f, 0.0f, 0.0f);
-		mat->Get(AI_MATKEY_COLOR_SPECULAR, color);
-		materialTmp.roughness = f32ToU8(color.r);
+		else {
+			aiColor3D color = aiColor3D(0.0f, 0.0f, 0.0f);
+			mat->Get(AI_MATKEY_COLOR_SPECULAR, color);
+			materialTmp.roughness = f32ToU8(color.r);
 
-		color = aiColor3D(0.0f, 0.0f, 0.0f);
-		mat->Get(AI_MATKEY_COLOR_AMBIENT, color);
-		materialTmp.metallic = f32ToU8(color.r);
+			color = aiColor3D(0.0f, 0.0f, 0.0f);
+			mat->Get(AI_MATKEY_COLOR_AMBIENT, color);
+			materialTmp.metallic = f32ToU8(color.r);
+		}
 
 		// Normal map (stored in height for some reason)
 		if (mat->GetTextureCount(aiTextureType_HEIGHT) > 0) {
