@@ -296,7 +296,7 @@ static bool extractAssets(
 		// Roughness Value
 		if (hasParamValues("roughnessFactor")) {
 			const tinygltf::Parameter& param = material.values.find("roughnessFactor")->second;
-			phMat.metallic = toU8(float(param.Factor()));
+			phMat.roughness = toU8(float(param.Factor()));
 		}
 
 		// Metallic Value
@@ -308,7 +308,7 @@ static bool extractAssets(
 		// Emissive value
 		if (hasParamAdditionalValues("emissiveFactor")) {
 			const tinygltf::Parameter& param = material.additionalValues.find("emissiveFactor")->second;
-			phMat.metallic = toU8(float(param.Factor()));
+			phMat.emissive = toSfz(param.ColorFactor()).xyz;
 		}
 
 		// Roughness and Metallic texture
@@ -360,7 +360,7 @@ static bool extractAssets(
 		}
 
 		// Remove default emissive factor if no emissive is specified
-		if (phMat.emissiveTexIndex == uint16_t(~0) && hasParamAdditionalValues("emissiveFactor")) {
+		if (phMat.emissiveTexIndex == uint16_t(~0) && !hasParamAdditionalValues("emissiveFactor")) {
 			phMat.emissive = vec3_u8(uint8_t(0));
 		}
 
