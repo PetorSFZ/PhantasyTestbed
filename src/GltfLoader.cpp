@@ -225,6 +225,10 @@ static bool extractAssets(
 	DynArray<uint32_t> localToGlobalTexIndex(uint32_t(model.textures.size()));
 	for (uint32_t i = 0; i < model.textures.size(); i++) {
 		const tinygltf::Texture& tex = model.textures[i];
+		if (tex.source < 0 || model.images.size() <= tex.source) {
+			SFZ_ERROR("tinygltf", "Bad texture source: %i", tex.source);
+			continue;
+		}
 		const tinygltf::Image& img = model.images[tex.source];
 
 		// TODO: We need to store these two values somewhere. Likely in material (because it does
