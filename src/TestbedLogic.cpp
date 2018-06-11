@@ -70,34 +70,9 @@ public:
 		state.dynamicAssets.materials.add(defaultMaterial);
 
 		// Load sponza level
-		loadStaticSceneSponza(
-			"", "resources/sponzaPBR/sponzaPBR.obj", state.dynamicAssets, mat44::scaling3(0.05f));
-
-		// Write sponza level
-		DynArray<uint32_t> meshIndices;
-		meshIndices.setCapacity(state.dynamicAssets.meshes.size());
-		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
-			meshIndices.add(i);
+		if (!loadAssetsFromGltf("resources/sponza.gltf", state.dynamicAssets)) {
+			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 		}
-		writeAssetsToGltf("resources/tempwrite/sponzaPBR.gltf", state.dynamicAssets, meshIndices);
-
-		// ----------------------------------------------------------------------------------------
-		// Temporary glTF test code
-
-		//Mesh tmpMesh = loadMeshFromGltf("", "resources/Box.gltf", tmpMaterialIdx);
-		//Mesh tmpMesh = createCubeModel(getDefaultAllocator(), 0);
-		//state.dynamicAssets.meshes.add(tmpMesh);
-
-		/*if (!loadAssetsFromGltf("resources/Box.gltf", state.dynamicAssets)) {
-			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
-		}*/
-
-		/*if (!loadAssetsFromGltf("resources/BoomBox/BoomBox.gltf", state.dynamicAssets)) {
-			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
-		}*/
-
-		// ----------------------------------------------------------------------------------------
-
 		// Create RenderEntitites to render
 		state.renderEntities.create(state.dynamicAssets.meshes.size());
 		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
@@ -106,8 +81,6 @@ public:
 			entity.transform = mat34::identity();
 			state.renderEntities.add(entity);
 		}
-
-		//state.renderEntities.last().transform = mat34::scaling3(100.0f) + mat34::translation3(vec3(0.0f, 1.0f, 0.0f));
 
 		// Uploaded dynamic level assets to renderer
 		DynArray<ConstImageView> textureViews;
