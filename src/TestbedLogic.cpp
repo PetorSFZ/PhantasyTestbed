@@ -10,7 +10,6 @@
 #include <ph/sdl/ButtonState.hpp>
 
 #include "Cube.hpp"
-#include "SponzaLoader.hpp"
 #include "GltfLoader.hpp"
 #include "GltfWriter.hpp"
 
@@ -130,7 +129,7 @@ public:
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
 	}
 
-	virtual ImguiControllers imguiController(const UserInput& input)
+	virtual ImguiControllers imguiController(const UserInput& input) override final
 	{
 		ImguiControllers settings;
 		settings.useKeyboard = true;
@@ -242,17 +241,17 @@ public:
 		return UpdateOp::NO_OP();
 	}
 
-	void renderCustomImgui()
+	void renderCustomImgui() override final
 	{
 		if (mShowImguiDemo->boolValue()) ImGui::ShowDemoWindow();
 	}
 
-	void onConsoleActivated()
+	void onConsoleActivated() override final
 	{
 
 	}
 
-	void onConsoleDeactivated()
+	void onConsoleDeactivated() override final
 	{
 
 	}

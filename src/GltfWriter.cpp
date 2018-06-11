@@ -495,7 +495,6 @@ static bool writeMeshes(
 	DynString& gltf,
 	const char* basePath,
 	const char* baseMainFileName,
-	const LevelAssets& assets,
 	const ProcessedAssets& processedAssets,
 	const BinaryData& binaryData) noexcept
 {
@@ -781,7 +780,7 @@ bool writeAssetsToGltf(
 
 	// Write meshes
 	if (!writeMeshes(
-		tempGltfString, basePath, fileNameWithoutEnding, assets, processedAssets, binaryData)) {
+		tempGltfString, basePath, fileNameWithoutEnding, processedAssets, binaryData)) {
 		return false;
 	}
 

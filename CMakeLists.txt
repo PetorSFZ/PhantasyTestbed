@@ -198,9 +198,6 @@ else()
 	)
 endif()
 
-# Assimp
-add_subdirectory(${EXTERNALS_DIR}/assimp)
-
 # tinygltf
 # ${TINYGLTF_FOUND}, ${TINYGLTF_INCLUDE_DIRS}
 add_subdirectory(${EXTERNALS_DIR}/tinygltf)
@@ -215,8 +212,6 @@ set(SRC_FILES
 	${INCLUDE_DIR}/GltfWriter.hpp
 		${SRC_DIR}/GltfWriter.cpp
 		${SRC_DIR}/PhantasyTestbedMain.cpp
-	${INCLUDE_DIR}/SponzaLoader.hpp
-		${SRC_DIR}/SponzaLoader.cpp
 	${INCLUDE_DIR}/TestbedLogic.hpp
 		${SRC_DIR}/TestbedLogic.cpp
 )

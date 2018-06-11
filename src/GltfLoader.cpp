@@ -225,7 +225,7 @@ static bool extractAssets(
 	DynArray<uint32_t> localToGlobalTexIndex(uint32_t(model.textures.size()));
 	for (uint32_t i = 0; i < model.textures.size(); i++) {
 		const tinygltf::Texture& tex = model.textures[i];
-		if (tex.source < 0 || model.images.size() <= tex.source) {
+		if (tex.source < 0 || int(model.images.size()) <= tex.source) {
 			SFZ_ERROR("tinygltf", "Bad texture source: %i", tex.source);
 			continue;
 		}
@@ -389,7 +389,8 @@ static bool extractAssets(
 		// TINYGLTF_MODE_TRIANGLE_FAN (6)
 		sfz_assert_release(primitive.mode == TINYGLTF_MODE_TRIANGLES);
 
-		sfz_assert_release(primitive.indices >= 0 && primitive.indices < model.accessors.size());
+		sfz_assert_release(
+			primitive.indices >= 0 && primitive.indices < int(model.accessors.size()));
 
 		// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#geometry
 		//
