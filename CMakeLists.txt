@@ -41,7 +41,7 @@ elseif(EMSCRIPTEN)
 	# -DPH_STATIC_LINK_RENDERER = Link renderer statically instead of dynamically
 	# --preload-file resources = Load "resources" directory into generated javascript
 	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -DPH_STATIC_LINK_RENDERER --preload-file resources")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -s WASM=0 -s DEMANGLE_SUPPORT=1 -DPH_STATIC_LINK_RENDERER --preload-file resources")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
