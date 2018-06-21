@@ -53,7 +53,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	# -march=sandybridge = Require at least a Sandy Bridge Intel CPU to run code
 	# -fno-strict-aliasing = Disable strict aliasing optimizations
 	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -march=sandybridge -fno-strict-aliasing -DPH_STATIC_LINK_RENDERER")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -march=sandybridge -fno-strict-aliasing")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
@@ -183,15 +183,8 @@ if(EMSCRIPTEN)
 		${ROOT_DIR}/Renderer-CompatibleGL
 		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
 	)
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-	# Static linked CompatibleGL renderer for macOS
-	set(PH_RENDERER_COMPATIBLE_GL_STATIC true)
-	add_subdirectory(
-		${ROOT_DIR}/Renderer-CompatibleGL
-		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
-	)
 else()
-	# Dynamically linked CompatibleGL renderer for Windows
+	# Dynamically linked CompatibleGL renderer for Windows and macOS
 	add_subdirectory(
 		${ROOT_DIR}/Renderer-CompatibleGL
 		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
@@ -239,8 +232,6 @@ target_link_libraries(PhantasyTestbed
 )
 
 if(EMSCRIPTEN)
-	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
 	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 else()
 	# Ensure the CompatibleGL Renderer is built even though it is not explicitly linked to the exe
