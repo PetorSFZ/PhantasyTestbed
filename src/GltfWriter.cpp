@@ -134,7 +134,7 @@ static DynArray<SplitMesh> splitMeshes(
 
 struct ProcessedAssets {
 	DynArray<SplitMesh> splitMeshes;
-	DynArray<Material> materials;
+	DynArray<phMaterial> materials;
 	DynArray<uint32_t> textureIndices;
 };
 
@@ -182,7 +182,7 @@ static ProcessedAssets processAssets(
 	// Go through materials to write and find all textures to write, also update texture indices in
 	// materials to reflect their new indices in the gltf file.
 	processedAssets.textureIndices.create(100);
-	for (Material& m : processedAssets.materials) {
+	for (phMaterial& m : processedAssets.materials) {
 
 		// Albedo
 		if (m.albedoTexIndex != uint16_t(~0)) {
@@ -356,7 +356,7 @@ static void writeHeader(DynString& gltf) noexcept
 	gltf.printfAppend("%s", "\t},\n");
 }
 
-static void writeMaterials(DynString& gltf, const DynArray<Material>& materials) noexcept
+static void writeMaterials(DynString& gltf, const DynArray<phMaterial>& materials) noexcept
 {
 	gltf.printfAppend("%s", "\t\"materials\": [\n");
 
@@ -365,7 +365,7 @@ static void writeMaterials(DynString& gltf, const DynArray<Material>& materials)
 	};
 
 	for (uint32_t i = 0; i < materials.size(); i++) {
-		const Material& m = materials[i];
+		const phMaterial& m = materials[i];
 
 		gltf.printfAppend("%s", "\t\t{\n");
 

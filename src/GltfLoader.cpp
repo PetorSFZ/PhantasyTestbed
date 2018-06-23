@@ -40,6 +40,9 @@ namespace ph {
 
 using sfz::HashMap;
 using sfz::str320;
+using sfz::vec3_u8;
+using sfz::vec4;
+using sfz::vec4_u8;
 
 // Statics
 // ------------------------------------------------------------------------------------------------
@@ -268,7 +271,7 @@ static bool extractAssets(
 	const uint32_t materialBaseIndex = assets.materials.size();
 	for (uint32_t i = 0; i < model.materials.size(); i++) {
 		const tinygltf::Material& material = model.materials[i];
-		Material phMat;
+		phMaterial phMat;
 
 		// Lambda for checking if parameter exists
 		auto hasParamValues = [&](const char* key) {

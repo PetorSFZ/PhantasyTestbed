@@ -63,7 +63,7 @@ public:
 	void initialize(UpdateableState& state, Renderer& renderer) override final
 	{
 		// Add default material
-		Material defaultMaterial;
+		phMaterial defaultMaterial;
 		defaultMaterial.albedo = vec4_u8(255, 0, 0, 255);
 		defaultMaterial.roughness = 255;
 		state.dynamicAssets.materials.add(defaultMaterial);
