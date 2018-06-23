@@ -65,7 +65,7 @@ public:
 		// Add default material
 		Material defaultMaterial;
 		defaultMaterial.albedo = vec4_u8(255, 0, 0, 255);
-		defaultMaterial.roughness = 1.0f;
+		defaultMaterial.roughness = 255;
 		state.dynamicAssets.materials.add(defaultMaterial);
 
 		// Load sponza level

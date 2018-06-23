@@ -188,35 +188,35 @@ static ProcessedAssets processAssets(
 		if (m.albedoTexIndex != uint16_t(~0)) {
 			sfz_assert_debug(m.albedoTexIndex < assets.textures.size());
 			processedAssets.textureIndices.add(m.albedoTexIndex);
-			m.albedoTexIndex = processedAssets.textureIndices.size() - 1;
+			m.albedoTexIndex = uint16_t(processedAssets.textureIndices.size()) - 1;
 		}
 
 		// MetallicRoughness
 		if (m.metallicRoughnessTexIndex != uint16_t(~0)) {
 			sfz_assert_debug(m.metallicRoughnessTexIndex < assets.textures.size());
 			processedAssets.textureIndices.add(m.metallicRoughnessTexIndex);
-			m.metallicRoughnessTexIndex = processedAssets.textureIndices.size() - 1;
+			m.metallicRoughnessTexIndex = uint16_t(processedAssets.textureIndices.size()) - 1;
 		}
 
 		// Normal
 		if (m.normalTexIndex != uint16_t(~0)) {
 			sfz_assert_debug(m.normalTexIndex < assets.textures.size());
 			processedAssets.textureIndices.add(m.normalTexIndex);
-			m.normalTexIndex = processedAssets.textureIndices.size() - 1;
+			m.normalTexIndex = uint16_t(processedAssets.textureIndices.size()) - 1;
 		}
 
 		// Occlusion
 		if (m.occlusionTexIndex != uint16_t(~0)) {
 			sfz_assert_debug(m.occlusionTexIndex < assets.textures.size());
 			processedAssets.textureIndices.add(m.occlusionTexIndex);
-			m.occlusionTexIndex = processedAssets.textureIndices.size() - 1;
+			m.occlusionTexIndex = uint16_t(processedAssets.textureIndices.size()) - 1;
 		}
 
 		// Emissive
 		if (m.emissiveTexIndex != uint16_t(~0)) {
 			sfz_assert_debug(m.emissiveTexIndex < assets.textures.size());
 			processedAssets.textureIndices.add(m.emissiveTexIndex);
-			m.emissiveTexIndex = processedAssets.textureIndices.size() - 1;
+			m.emissiveTexIndex = uint16_t(processedAssets.textureIndices.size()) - 1;
 		}
 	}
 

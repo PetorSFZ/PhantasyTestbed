@@ -179,10 +179,10 @@ static uint8_t toU8(float val) noexcept
 static vec4_u8 toSfz(const tinygltf::ColorValue& val) noexcept
 {
 	vec4_u8 tmp;
-	tmp.x = toU8(val[0]);
-	tmp.y = toU8(val[1]);
-	tmp.z = toU8(val[2]);
-	tmp.w = toU8(val[3]);
+	tmp.x = toU8(float(val[0]));
+	tmp.y = toU8(float(val[1]));
+	tmp.z = toU8(float(val[2]));
+	tmp.w = toU8(float(val[3]));
 	return tmp;
 }
 
@@ -221,8 +221,8 @@ static bool extractAssets(
 	const char* basePath, const tinygltf::Model& model, LevelAssets& assets) noexcept
 {
 	// Load textures
-	HashMap<str320, uint32_t> texMapping;
-	DynArray<uint32_t> localToGlobalTexIndex(uint32_t(model.textures.size()));
+	HashMap<str320, uint16_t> texMapping;
+	DynArray<uint16_t> localToGlobalTexIndex(uint32_t(model.textures.size()));
 	for (uint32_t i = 0; i < model.textures.size(); i++) {
 		const tinygltf::Texture& tex = model.textures[i];
 		if (tex.source < 0 || int(model.images.size()) <= tex.source) {
@@ -238,7 +238,7 @@ static bool extractAssets(
 		//int wrapT = sampler.wrapT; // ["CLAMP_TO_EDGE", "MIRRORED_REPEAT", "REPEAT"], default "REPEAT"
 
 		// Check if texture has already been read
-		const uint32_t* texMappingIndexPtr = texMapping.get(img.uri.c_str());
+		const uint16_t* texMappingIndexPtr = texMapping.get(img.uri.c_str());
 		if (texMappingIndexPtr != nullptr) {
 			localToGlobalTexIndex.add(*texMappingIndexPtr);
 			continue;
@@ -255,7 +255,7 @@ static bool extractAssets(
 		}
 
 		// Add texture to assets and record its global index in texMapping
-		uint32_t globalTexIndex = assets.textures.size();
+		uint16_t globalTexIndex = uint16_t(assets.textures.size());
 		assets.textures.add(std::move(phImage));
 		texMapping[img.uri.c_str()] = globalTexIndex;
 		localToGlobalTexIndex.add(globalTexIndex);
@@ -421,11 +421,11 @@ static bool extractAssets(
 		// TODO: Texcoords
 		sfz_assert_release(posAccess.numElements == normalAccess.numElements);
 		phMesh.vertices.create(posAccess.numElements);
-		for (uint32_t i = 0; i < posAccess.numElements; i++) {
+		for (uint32_t j = 0; j < posAccess.numElements; j++) {
 			Vertex vertex;
-			vertex.pos = posAccess.at<vec3>(i);
-			vertex.normal = normalAccess.at<vec3>(i);
-			vertex.texcoord = texcoord0Access.at<vec2>(i);
+			vertex.pos = posAccess.at<vec3>(j);
+			vertex.normal = normalAccess.at<vec3>(j);
+			vertex.texcoord = texcoord0Access.at<vec2>(j);
 			phMesh.vertices.add(vertex);
 		}
 
@@ -439,8 +439,8 @@ static bool extractAssets(
 		}
 		else if (idxAccess.compType == ComponentType::UINT16) {
 			phMesh.indices.create(idxAccess.numElements);
-			for (uint32_t i = 0; i < idxAccess.numElements; i++) {
-				phMesh.indices.add(uint32_t(idxAccess.at<uint16_t>(i)));
+			for (uint32_t j = 0; j < idxAccess.numElements; j++) {
+				phMesh.indices.add(uint32_t(idxAccess.at<uint16_t>(j)));
 			}
 		}
 		else {
