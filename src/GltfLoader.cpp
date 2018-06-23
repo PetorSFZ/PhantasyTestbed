@@ -40,6 +40,8 @@ namespace ph {
 
 using sfz::HashMap;
 using sfz::str320;
+using sfz::vec2;
+using sfz::vec3;
 using sfz::vec3_u8;
 using sfz::vec4;
 using sfz::vec4_u8;
@@ -425,7 +427,7 @@ static bool extractAssets(
 		sfz_assert_release(posAccess.numElements == normalAccess.numElements);
 		phMesh.vertices.create(posAccess.numElements);
 		for (uint32_t j = 0; j < posAccess.numElements; j++) {
-			Vertex vertex;
+			phVertex vertex;
 			vertex.pos = posAccess.at<vec3>(j);
 			vertex.normal = normalAccess.at<vec3>(j);
 			vertex.texcoord = texcoord0Access.at<vec2>(j);

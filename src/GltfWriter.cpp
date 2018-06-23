@@ -29,6 +29,8 @@ namespace ph {
 
 using sfz::DynString;
 using sfz::str320;
+using sfz::vec2;
+using sfz::vec3;
 
 // Statics (input processing)
 // ------------------------------------------------------------------------------------------------
@@ -40,7 +42,7 @@ struct MeshComponent {
 
 // Sorts all triangles in a mesh into different components where each component uses only one
 // material. If the entire mesh uses a single material only one component will be returned.
-static DynArray<MeshComponent> componentsFromMesh(const ConstMeshView& mesh) noexcept
+static DynArray<MeshComponent> componentsFromMesh(const phConstMeshView& mesh) noexcept
 {
 	sfz_assert_debug((mesh.numIndices % 3) == 0);
 
@@ -85,7 +87,7 @@ static DynArray<MeshComponent> componentsFromMesh(const ConstMeshView& mesh) noe
 }
 
 struct SplitMesh {
-	DynArray<Vertex> vertices;
+	DynArray<phVertex> vertices;
 	DynArray<MeshComponent> components;
 	vec3 posMin = vec3(FLT_MAX);
 	vec3 posMax = vec3(-FLT_MAX);
@@ -119,7 +121,7 @@ static DynArray<SplitMesh> splitMeshes(
 		splitMesh.components = componentsFromMesh(mesh);
 
 		// Find min and max elements
-		for (const Vertex& v : splitMesh.vertices) {
+		for (const phVertex& v : splitMesh.vertices) {
 			splitMesh.posMax = sfz::max(splitMesh.posMax, v.pos);
 			splitMesh.posMin = sfz::min(splitMesh.posMin, v.pos);
 		}
@@ -254,21 +256,21 @@ static BinaryData createBinaryMeshData(const ProcessedAssets& processedAssets) n
 
 		// Positions
 		offsets.posOffset = data.combinedBinaryData.size();
-		for (const Vertex& v : mesh.vertices) {
+		for (const phVertex& v : mesh.vertices) {
 			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(&v.pos), sizeof(vec3));
 		}
 		offsets.posNumBytes = data.combinedBinaryData.size() - offsets.posOffset;
 
 		// Normals
 		offsets.normalOffset = data.combinedBinaryData.size();
-		for (const Vertex& v : mesh.vertices) {
+		for (const phVertex& v : mesh.vertices) {
 			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(&v.normal), sizeof(vec3));
 		}
 		offsets.normalNumBytes = data.combinedBinaryData.size() - offsets.normalOffset;
 
 		// Texcoord
 		offsets.texcoordOffset = data.combinedBinaryData.size();
-		for (const Vertex& v : mesh.vertices) {
+		for (const phVertex& v : mesh.vertices) {
 			data.combinedBinaryData.add(reinterpret_cast<const uint8_t*>(&v.texcoord), sizeof(vec2));
 		}
 		offsets.texcoordNumBytes = data.combinedBinaryData.size() - offsets.texcoordOffset;

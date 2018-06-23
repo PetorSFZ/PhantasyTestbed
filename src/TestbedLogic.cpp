@@ -75,7 +75,7 @@ public:
 		// Create RenderEntitites to render
 		state.renderEntities.create(state.dynamicAssets.meshes.size());
 		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
-			ph::RenderEntity entity;
+			phRenderEntity entity;
 			entity.meshIndex = i;
 			entity.transform = mat34::identity();
 			state.renderEntities.add(entity);
@@ -86,7 +86,7 @@ public:
 		for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
 		renderer.setTextures(textureViews);
 		renderer.setMaterials(state.dynamicAssets.materials);
-		DynArray<ConstMeshView> meshViews;
+		DynArray<phConstMeshView> meshViews;
 		for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
 		renderer.setDynamicMeshes(meshViews);
 
@@ -105,7 +105,7 @@ public:
 		};
 		uint32_t numLights = sizeof(lightColors) / sizeof(vec3);
 		for (uint32_t i = 0; i < numLights; i++) {
-			ph::SphereLight tmp;
+			phSphereLight tmp;
 
 			tmp.pos = vec3(-50.0f + 100.0f * i / (numLights - 1), 5.0f, 0.0f);
 			tmp.range = 70.0f;
@@ -116,7 +116,7 @@ public:
 			state.dynamicSphereLights.add(tmp);
 		}
 
-		ph::SphereLight tmpLight;
+		phSphereLight tmpLight;
 		tmpLight.pos = vec3(0.0f, 3.0f, 0.0f);
 		tmpLight.range = 70.0f;
 		tmpLight.radius = 0.5f;
