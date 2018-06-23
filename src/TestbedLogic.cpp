@@ -82,7 +82,7 @@ public:
 		}
 
 		// Uploaded dynamic level assets to renderer
-		DynArray<ConstImageView> textureViews;
+		DynArray<phConstImageView> textureViews;
 		for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
 		renderer.setTextures(textureViews);
 		renderer.setMaterials(state.dynamicAssets.materials);
