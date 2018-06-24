@@ -6,6 +6,7 @@
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
 
+#include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/sdl/ButtonState.hpp>
 
@@ -125,7 +126,7 @@ public:
 		state.dynamicSphereLights.add(tmpLight);
 
 
-		GlobalConfig& cfg = GlobalConfig::instance();
+		GlobalConfig& cfg = ph::getGlobalConfig();
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
 	}
 
