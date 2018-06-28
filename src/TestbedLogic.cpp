@@ -69,27 +69,72 @@ public:
 		defaultMaterial.roughness = 255;
 		state.dynamicAssets.materials.add(defaultMaterial);
 
-		// Load sponza level
-		if (!loadAssetsFromGltf("resources/sponza.gltf", state.dynamicAssets)) {
-			SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+		const bool sponzaAsStaticScene = true;
+		if (sponzaAsStaticScene) {
+			// Static scene
+			StaticScene staticScene;
+			staticScene.assets.materials.add(defaultMaterial);
+
+			// Load sponza level
+			if (!loadAssetsFromGltf("resources/sponza.gltf", staticScene.assets)) {
+				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+			}
+
+			// Create RenderEntitites to render
+			staticScene.renderEntities.create(staticScene.assets.meshes.size());
+			for (uint32_t i = 0; i < staticScene.assets.meshes.size(); i++) {
+				phRenderEntity entity;
+				entity.meshIndex = i;
+				entity.transform = mat34::identity();
+				staticScene.renderEntities.add(entity);
+			}
+
+			// Add a static light
+			phSphereLight tmpLight;
+			tmpLight.pos = vec3(0.0f, 3.0f, 0.0f);
+			tmpLight.range = 70.0f;
+			tmpLight.radius = 0.5f;
+			tmpLight.strength = vec3(150.0f);
+			tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
+			staticScene.sphereLights.add(tmpLight);
+
+			// Upload static scene to renderer
+			renderer.setStaticScene(staticScene);
 		}
-		// Create RenderEntitites to render
-		state.renderEntities.create(state.dynamicAssets.meshes.size());
-		for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
-			phRenderEntity entity;
-			entity.meshIndex = i;
-			entity.transform = mat34::identity();
-			state.renderEntities.add(entity);
+		else {
+			// Load sponza level
+			if (!loadAssetsFromGltf("resources/sponza.gltf", state.dynamicAssets)) {
+				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+			}
+
+			// Create RenderEntitites to render
+			state.renderEntities.create(state.dynamicAssets.meshes.size());
+			for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
+				phRenderEntity entity;
+				entity.meshIndex = i;
+				entity.transform = mat34::identity();
+				state.renderEntities.add(entity);
+			}
+
+			// Uploaded dynamic level assets to renderer
+			DynArray<phConstImageView> textureViews;
+			for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
+			renderer.setTextures(textureViews);
+			renderer.setMaterials(state.dynamicAssets.materials);
+			DynArray<phConstMeshView> meshViews;
+			for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
+			renderer.setDynamicMeshes(meshViews);
+
+			phSphereLight tmpLight;
+			tmpLight.pos = vec3(0.0f, 3.0f, 0.0f);
+			tmpLight.range = 70.0f;
+			tmpLight.radius = 0.5f;
+			tmpLight.strength = vec3(150.0f);
+			tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
+			state.dynamicSphereLights.add(tmpLight);
 		}
 
-		// Uploaded dynamic level assets to renderer
-		DynArray<phConstImageView> textureViews;
-		for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
-		renderer.setTextures(textureViews);
-		renderer.setMaterials(state.dynamicAssets.materials);
-		DynArray<phConstMeshView> meshViews;
-		for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
-		renderer.setDynamicMeshes(meshViews);
+		
 
 		// Initialize camera
 		state.cam.pos = vec3(3.0f, 3.0f, 3.0f);
@@ -100,7 +145,7 @@ public:
 		state.cam.vertFovDeg = 60.0f;
 
 		// Add dynamic lights
-		vec3 lightColors[] = {
+		/*vec3 lightColors[] = {
 			vec3(1.0f, 0.0f, 1.0f),
 			vec3(1.0f, 1.0f, 1.0f)
 		};
@@ -115,16 +160,9 @@ public:
 			tmp.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 
 			state.dynamicSphereLights.add(tmp);
-		}
+		}*/
 
-		phSphereLight tmpLight;
-		tmpLight.pos = vec3(0.0f, 3.0f, 0.0f);
-		tmpLight.range = 70.0f;
-		tmpLight.radius = 0.5f;
-		tmpLight.strength = vec3(150.0f);
-		tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
-		state.dynamicSphereLights.add(tmpLight);
-
+		
 
 		GlobalConfig& cfg = ph::getGlobalConfig();
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
