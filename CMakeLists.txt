@@ -41,7 +41,7 @@ elseif(EMSCRIPTEN)
 	# -DPH_STATIC_LINK_RENDERER = Link renderer statically instead of dynamically
 	# --preload-file resources = Load "resources" directory into generated javascript
 	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -s WASM=0 -s DEMANGLE_SUPPORT=1 -DPH_STATIC_LINK_RENDERER --preload-file resources")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -s WASM=0 -s DEMANGLE_SUPPORT=1 -DPH_STATIC_LINK_RENDERER --preload-file resources --preload-file res_compgl")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
@@ -69,6 +69,8 @@ set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(EXTERNALS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/externals)
+set(RESOURCES_DIR_NAME resources)
+set(RESOURCES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${RESOURCES_DIR_NAME})
 
 # Dependencies
 # ------------------------------------------------------------------------------------------------
@@ -253,4 +255,42 @@ if(MSVC)
 	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
 	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
 	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/Release)
+endif()
+
+# Create symlink script
+# ------------------------------------------------------------------------------------------------
+
+if(MSVC)
+
+else()
+	set(SYMLINK_FILE "${CMAKE_BINARY_DIR}/create_symlinks.sh")
+	set(DEBUG_DIR "${CMAKE_BINARY_DIR}/Debug")
+	set(RELWITHDEBINFO_DIR "${CMAKE_BINARY_DIR}/RelWithDebInfo")
+	set(RELEASE_DIR "${CMAKE_BINARY_DIR}/Release")
+
+	# Create directories
+	file(APPEND ${SYMLINK_FILE} "# Create Debug, Release and RelWithDebInfo directories\n")
+	file(APPEND ${SYMLINK_FILE} "# (These are used for some IDE's, such as Xcode. Not for makefiles.)\n")
+	file(APPEND ${SYMLINK_FILE} "mkdir ${DEBUG_DIR}\n")
+	file(APPEND ${SYMLINK_FILE} "mkdir ${RELWITHDEBINFO_DIR}\n")
+	file(APPEND ${SYMLINK_FILE} "mkdir ${RELEASE_DIR}\n")
+	file(APPEND ${SYMLINK_FILE} "\n")
+
+	# Resources symlink dir
+	file(APPEND ${SYMLINK_FILE} "# Create PhantasyTestbed resources symlinks\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${CMAKE_BINARY_DIR}/${RESOURCES_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${DEBUG_DIR}/${RESOURCES_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${RELWITHDEBINFO_DIR}/${RESOURCES_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${RELEASE_DIR}/${RESOURCES_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "\n")
+
+	# Renderer-CompatibleGL symlink dir
+	get_filename_component(COMP_GL_SYMLINK_DIR_NAME ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} NAME)
+	file(APPEND ${SYMLINK_FILE} "# Create Renderer-CompatibleGL symlinks\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${CMAKE_BINARY_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${DEBUG_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${RELWITHDEBINFO_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${RELEASE_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
+	file(APPEND ${SYMLINK_FILE} "\n")
+
 endif()

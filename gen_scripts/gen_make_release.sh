@@ -12,5 +12,6 @@ cd build_make_release
 # Generate build files
 cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
 
-# Create resources symlink
-ln -s ../resources resources
+# Run create_symlinks.sh shell script
+chmod +x create_symlinks.sh
+./create_symlinks.sh

@@ -134,8 +134,6 @@ public:
 			state.dynamicSphereLights.add(tmpLight);
 		}
 
-		
-
 		// Initialize camera
 		state.cam.pos = vec3(3.0f, 3.0f, 3.0f);
 		state.cam.dir = sfz::normalize(vec3(-1.0f, -0.25f, -1.0f));
@@ -144,8 +142,8 @@ public:
 		state.cam.far = 200.0f;
 		state.cam.vertFovDeg = 60.0f;
 
-		// Add dynamic lights
-		/*vec3 lightColors[] = {
+		/// Add dynamic lights
+		vec3 lightColors[] = {
 			vec3(1.0f, 0.0f, 1.0f),
 			vec3(1.0f, 1.0f, 1.0f)
 		};
@@ -160,9 +158,7 @@ public:
 			tmp.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 
 			state.dynamicSphereLights.add(tmp);
-		}*/
-
-		
+		}
 
 		GlobalConfig& cfg = ph::getGlobalConfig();
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);

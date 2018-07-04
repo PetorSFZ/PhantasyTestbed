@@ -12,5 +12,6 @@ cd build_ninja_debug
 # Generate build files
 cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
 
-# Create resources symlink
-ln -s ../resources resources
+# Run create_symlinks.sh shell script
+chmod +x create_symlinks.sh
+./create_symlinks.sh
