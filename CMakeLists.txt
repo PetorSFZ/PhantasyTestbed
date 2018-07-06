@@ -32,7 +32,48 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "/Od /DEBUG")
 
 	if(CUDA_TRACER)
+		# Define PH_CUDA_RAYTRACER
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DPH_CUDA_RAYTRACER")
+
+		# Function for processing flags for Xcompiler support
+		function(process_flags flags_in processed_flags_out)
+			string(STRIP ${flags_in} TMP1)
+			string(REPLACE "  " " " TMP2 ${TMP1})
+			string(REPLACE "  " " " TMP3 ${TMP2})
+			string(REPLACE " " "," TMP4 ${TMP3})
+			set(${processed_flags_out} ${TMP4} PARENT_SCOPE)
+		endfunction()
+
+		# Process flags
+		process_flags(${CMAKE_CXX_FLAGS} CMAKE_CXX_FLAGS_PROCESSED)
+		process_flags(${CMAKE_CXX_FLAGS_DEBUG} CMAKE_CXX_FLAGS_DEBUG_PROCESSED)
+		process_flags(${CMAKE_CXX_FLAGS_RELWITHDEBINFO} CMAKE_CXX_FLAGS_RELWITHDEBINFO_PROCESSED)
+		process_flags(${CMAKE_CXX_FLAGS_RELEASE} CMAKE_CXX_FLAGS_RELEASE_PROCESSED)
+
+		# Set CUDA flags
+		# compute_30 <==> Equivalent to Kepler cards, (GTX 680M, etc)
+		# sm_50 <==> Maxwell cards (low-end), (940M, etc)
+		# sm_52 <==> Maxwell cards (high end), (GTX 970M, GTX 980 Ti, etc)
+		# sm_61 <==> Pascal cards (first gen), (1070, 1080, Titan X, etc)
+		set(CMAKE_CUDA_FLAGS "-D_WINDOWS -expt-relaxed-constexpr -gencode arch=compute_30,code=sm_52 -Xcompiler=${CMAKE_CXX_FLAGS_PROCESSED}")
+		set(CMAKE_CUDA_FLAGS_DEBUG "-O0 -g -lineinfo -Xcompiler=${CMAKE_CXX_FLAGS_DEBUG_PROCESSED}")
+		set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -use_fast_math -g -lineinfo -Xcompiler=${CMAKE_CXX_FLAGS_RELWITHDEBINFO_PROCESSED}")
+		set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -use_fast_math -Xcompiler=${CMAKE_CXX_FLAGS_RELEASE_PROCESSED}")
+
+		# Print compiler flags
+		message("------------------------------")
+		message("-- Compiler flags")
+		message("-- C++ flags")
+		message("CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS})
+		message("CMAKE_CXX_FLAGS_DEBUG: " ${CMAKE_CXX_FLAGS_DEBUG})
+		message("CMAKE_CXX_FLAGS_RELWITHDEBINFO: " ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+		message("CMAKE_CXX_FLAGS_RELEASE: " ${CMAKE_CXX_FLAGS_RELEASE})
+		message("-- CUDA flags")
+		message("CMAKE_CUDA_FLAGS: " ${CMAKE_CUDA_FLAGS})
+		message("CMAKE_CUDA_FLAGS_DEBUG: " ${CMAKE_CUDA_FLAGS_DEBUG})
+		message("CMAKE_CUDA_FLAGS_RELWITHDEBINFO: " ${CMAKE_CUDA_FLAGS_RELWITHDEBINFO})
+		message("CMAKE_CUDA_FLAGS_RELEASE: " ${CMAKE_CUDA_FLAGS_RELEASE})
+		message("------------------------------")
 	endif()
 
 elseif(EMSCRIPTEN)
