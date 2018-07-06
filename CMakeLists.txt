@@ -31,6 +31,10 @@ if(MSVC)
 	# /Od = "disables optimization, speeding compilation and simplifying debugging"
 	set(CMAKE_CXX_FLAGS_DEBUG "/Od /DEBUG")
 
+	if(CUDA_TRACER)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DPH_CUDA_RAYTRACER")
+	endif()
+
 elseif(EMSCRIPTEN)
 	# Emscripten flags
 	# -Wall -Wextra = Enable most warnings
@@ -186,11 +190,19 @@ if(EMSCRIPTEN)
 		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
 	)
 else()
-	# Dynamically linked CompatibleGL renderer for Windows and macOS
-	add_subdirectory(
-		${ROOT_DIR}/Renderer-CompatibleGL
-		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
-	)
+	if(CUDA_TRACER)
+		# Dynamically linked Cuda Raytracer renderer for Windows and macOS
+		add_subdirectory(
+			${ROOT_DIR}/Renderer-CudaRaytracer
+			${CMAKE_BINARY_DIR}/Renderer-CudaRaytracer
+		)
+	else()
+		# Dynamically linked CompatibleGL renderer for Windows and macOS
+		add_subdirectory(
+			${ROOT_DIR}/Renderer-CompatibleGL
+			${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
+		)
+	endif()
 endif()
 
 # tinygltf
@@ -236,8 +248,13 @@ target_link_libraries(PhantasyTestbed
 if(EMSCRIPTEN)
 	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 else()
-	# Ensure the CompatibleGL Renderer is built even though it is not explicitly linked to the exe
-	add_dependencies(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
+	if(CUDA_TRACER)
+		# Ensure the Cuda Raytracer Renderer is built even though it is not explicitly linked to the exe
+		add_dependencies(PhantasyTestbed ${PH_RENDERER_CUDA_RAYTRACER_LIBRARIES})
+	else()
+		# Ensure the CompatibleGL Renderer is built even though it is not explicitly linked to the exe
+		add_dependencies(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
+	endif()
 endif()
 
 # Copy runtime files
@@ -276,12 +293,17 @@ if(MSVC)
 	file(APPEND ${SYMLINK_FILE} "\n")
 
 	# Renderer-CompatibleGL symlink dir
-	get_filename_component(COMP_GL_SYMLINK_DIR_NAME ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} NAME)
+	if(CUDA_TRACER)
+		set(RENDERER_SYMLINK_DIR ${PH_RENDERER_CUDA_RAYTRACER_RUNTIME_SYMLINK_DIR})
+	else()
+		set(RENDERER_SYMLINK_DIR ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR})
+	endif()
+	get_filename_component(SYMLINK_DIR_NAME ${RENDERER_SYMLINK_DIR} NAME)
 	file(APPEND ${SYMLINK_FILE} ": Create Renderer-CompatibleGL symlinks\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${CMAKE_BINARY_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\" \"${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${DEBUG_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\" \"${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELWITHDEBINFO_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\" \"${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELEASE_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\" \"${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR}\"\n")
+	file(APPEND ${SYMLINK_FILE} "mklink /D \"${CMAKE_BINARY_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
+	file(APPEND ${SYMLINK_FILE} "mklink /D \"${DEBUG_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
+	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELWITHDEBINFO_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
+	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELEASE_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
 	file(APPEND ${SYMLINK_FILE} "\n")
 
 else()
