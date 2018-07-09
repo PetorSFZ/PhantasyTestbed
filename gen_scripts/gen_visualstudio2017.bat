@@ -13,4 +13,6 @@ cd build_msvc2017
 cmake .. -G "Visual Studio 15 2017 Win64" -T v140
 
 : Run create_symlinks.bat script
-create_symlinks.bat
+call create_symlinks.bat
+
+cd ..

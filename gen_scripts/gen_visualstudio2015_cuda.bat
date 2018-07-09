@@ -13,4 +13,6 @@ cd build_msvc2015_cuda
 cmake .. -G "Visual Studio 14 2015 Win64" -DCUDA_TRACER=TRUE
 
 : Run create_symlinks.bat script
-create_symlinks.bat
+call create_symlinks.bat
+
+cd ..

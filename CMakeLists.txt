@@ -111,7 +111,6 @@ endif()
 # ------------------------------------------------------------------------------------------------
 
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
-set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(EXTERNALS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/externals)
 set(RESOURCES_DIR_NAME resources)
@@ -254,19 +253,21 @@ add_subdirectory(${EXTERNALS_DIR}/tinygltf)
 # ------------------------------------------------------------------------------------------------
 
 set(SRC_FILES
-	${INCLUDE_DIR}/Cube.hpp
-	${INCLUDE_DIR}/GltfLoader.hpp
-		${SRC_DIR}/GltfLoader.cpp
-	${INCLUDE_DIR}/GltfWriter.hpp
-		${SRC_DIR}/GltfWriter.cpp
-		${SRC_DIR}/PhantasyTestbedMain.cpp
-	${INCLUDE_DIR}/TestbedLogic.hpp
-		${SRC_DIR}/TestbedLogic.cpp
+	${SRC_DIR}/Cube.hpp
+	${SRC_DIR}/GltfLoader.hpp
+	${SRC_DIR}/GltfLoader.cpp
+	${SRC_DIR}/GltfWriter.hpp
+	${SRC_DIR}/GltfWriter.cpp
+	${SRC_DIR}/PhantasyTestbedMain.cpp
+	${SRC_DIR}/TestbedLogic.hpp
+	${SRC_DIR}/TestbedLogic.cpp
 )
+source_group(TREE ${SRC_DIR} FILES ${SRC_FILES})
 
 add_executable(PhantasyTestbed ${SRC_FILES})
 
 target_include_directories(PhantasyTestbed PUBLIC
+	${SRC_DIR}
 	${SDL2_INCLUDE_DIRS}
 	${STB_INCLUDE_DIRS}
 	${IMGUI_INCLUDE_DIRS}
