@@ -39,3 +39,5 @@ build_msvc2017/
 build_ninja_debug/
 build_ninja_release/
 build_xcode/
+build_xcode_macos/
+build_xcode_ios/
