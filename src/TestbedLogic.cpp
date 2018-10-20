@@ -76,7 +76,7 @@ public:
 			staticScene.assets.materials.add(defaultMaterial);
 
 			// Load sponza level
-			if (!loadAssetsFromGltf("resources/sponza.gltf", staticScene.assets)) {
+			if (!loadAssetsFromGltf("res/sponza.gltf", staticScene.assets)) {
 				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 			}
 
@@ -103,7 +103,7 @@ public:
 		}
 		else {
 			// Load sponza level
-			if (!loadAssetsFromGltf("resources/sponza.gltf", state.dynamicAssets)) {
+			if (!loadAssetsFromGltf("res/sponza.gltf", state.dynamicAssets)) {
 				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 			}
 
