@@ -162,6 +162,10 @@ public:
 
 		GlobalConfig& cfg = ph::getGlobalConfig();
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
+#if defined(SFZ_IOS)
+		cfg.getSetting("Console", "active")->setBool(true);
+		cfg.getSetting("Console", "alwaysShowPerformance")->setBool(true);
+#endif
 	}
 
 	virtual ImguiControllers imguiController(const UserInput& input) override final
