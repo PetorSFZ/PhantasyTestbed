@@ -86,10 +86,16 @@ elseif(EMSCRIPTEN)
 	# -DPH_STATIC_LINK_RENDERER = Link renderer statically instead of dynamically
 	# --preload-file resources = Load "resources" directory into generated javascript
 	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -s WASM=0 -s DEMANGLE_SUPPORT=1 -DPH_STATIC_LINK_RENDERER --preload-file resources --preload-file res_compgl")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -s WASM=0 -s DEMANGLE_SUPPORT=1 -DPH_STATIC_LINK_RENDERER --preload-file res --preload-file res_compgl")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+
+elseif(IOS)
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -DSFZ_IOS -fno-strict-aliasing")
+	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
 
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	# macOS flags
@@ -133,7 +139,7 @@ download_project(
 	PROJ                sdl2
 	PREFIX              externals
 	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-SDL2.git
-	GIT_TAG             b401be45b5caf537411e9a25acc86f6e00677959
+	GIT_TAG             f905aafdd26a4176c8d78101c45678148c66c679
 	UPDATE_DISCONNECTED 1
 	QUIET
 )
@@ -222,7 +228,7 @@ add_subdirectory(
 )
 
 # Renderers, different depending on target platform
-if(EMSCRIPTEN)
+if(EMSCRIPTEN OR IOS)
 	# CompatibleGL renderer when building for emscripten
 	set(PH_RENDERER_COMPATIBLE_GL_STATIC true)
 	add_subdirectory(
@@ -287,7 +293,7 @@ target_link_libraries(PhantasyTestbed
 	${ASSIMP_LIBRARIES}
 )
 
-if(EMSCRIPTEN)
+if(EMSCRIPTEN OR IOS)
 	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
 else()
 	if(CUDA_TRACER)
@@ -379,4 +385,33 @@ else()
 	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${RELEASE_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
 	file(APPEND ${SYMLINK_FILE} "\n")
 
+endif()
+
+# iOS specific stuff
+# ------------------------------------------------------------------------------------------------
+
+if (IOS)
+	target_link_libraries(PhantasyTestbed "-framework AudioToolbox")
+	target_link_libraries(PhantasyTestbed "-framework AVFoundation")
+	target_link_libraries(PhantasyTestbed "-framework CoreGraphics")
+	target_link_libraries(PhantasyTestbed "-framework CoreMotion")
+	target_link_libraries(PhantasyTestbed "-framework Foundation")
+	target_link_libraries(PhantasyTestbed "-framework GameController")
+	target_link_libraries(PhantasyTestbed "-framework OpenGLES")
+	target_link_libraries(PhantasyTestbed "-framework QuartzCore")
+	target_link_libraries(PhantasyTestbed "-framework UIKit")
+	target_link_libraries(PhantasyTestbed "-framework Metal")
+
+	# Copy res directory into application bundle
+	add_custom_command(TARGET PhantasyTestbed POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${RESOURCES_DIR} $<TARGET_FILE_DIR:PhantasyTestbed>/${RESOURCES_DIR_NAME}
+	)
+
+	# Copy Renderer-CompatibleGL's res dir into application bundle
+	get_filename_component(COMP_GL_RES_DIR_NAME ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} NAME)
+	add_custom_command(TARGET PhantasyTestbed POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} $<TARGET_FILE_DIR:PhantasyTestbed>/${COMP_GL_RES_DIR_NAME}
+	)
 endif()
