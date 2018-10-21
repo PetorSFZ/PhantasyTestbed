@@ -139,7 +139,7 @@ download_project(
 	PROJ                sdl2
 	PREFIX              externals
 	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-SDL2.git
-	GIT_TAG             f905aafdd26a4176c8d78101c45678148c66c679
+	GIT_TAG             1a44fa61353e86f48efc17e31d575a11382c59d6
 	UPDATE_DISCONNECTED 1
 	QUIET
 )
