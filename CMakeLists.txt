@@ -92,7 +92,7 @@ elseif(EMSCRIPTEN)
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 
 elseif(IOS)
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -DSFZ_IOS -fno-strict-aliasing")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -DSFZ_IOS -DPH_STATIC_LINK_RENDERER")
 	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
