@@ -1,255 +1,50 @@
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-project("Phantasy Testbed" CXX)
-
-# Sets build type to release if no build type is specified in a single-configuration generator.
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
-endif()
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+project("Phantasy Testbed" LANGUAGES CXX)
 
 # Generate a "compile_commands.json" for VSCode and such when compiling with make
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
-# Compiler flags
-# ------------------------------------------------------------------------------------------------
-
-if(MSVC)
-	# Visual Studio flags
-	# /W4 = Warning level 4 (/Wall is too picky and has annoying warnings in standard headers)
-	# /wd4201 = Disable warning 4201 (nonstandard extension used : nameless struct/union)
-	# /Zi = Produce .pdb debug information. Does not affect optimizations, but does imply /debug.
-	# /EHsc = TODO: Add explanation
-	# /arch:AVX = Enable (require) Intel AVX instructions for code generation
-	# /D_CRT_SECURE_NO_WARNINGS = Removes annyoing warning when using c standard library
-	# /utf-8 = Specifies that both the source and execution character sets are encoded using UTF-8.
-	set(CMAKE_CXX_FLAGS "/W4 /wd4201 /Zi /EHsc /arch:AVX /D_CRT_SECURE_NO_WARNINGS /utf-8")
-	# /O2 = Optimize code for fastest speed
-	# /fp:fast = "optimize floating-point code for speed at the expense of accuracy and correctness"
-	# /DSFZ_NO_DEBUG = defines the "SFZ_NO_DEBUG" macro, which disables sfz_assert_debug()
-	set(CMAKE_CXX_FLAGS_RELEASE "/O2 /fp:fast /DSFZ_NO_DEBUG")
-	# /DEBUG = "creates debugging information for the .exe file or DLL"
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /fp:fast /DEBUG /DSFZ_NO_DEBUG")
-	# /Od = "disables optimization, speeding compilation and simplifying debugging"
-	set(CMAKE_CXX_FLAGS_DEBUG "/Od /DEBUG")
-
-	if(CUDA_TRACER)
-		# Define PH_CUDA_RAYTRACER
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DPH_CUDA_RAYTRACER")
-
-		# Function for processing flags for Xcompiler support
-		function(process_flags flags_in processed_flags_out)
-			string(STRIP ${flags_in} TMP1)
-			string(REPLACE "  " " " TMP2 ${TMP1})
-			string(REPLACE "  " " " TMP3 ${TMP2})
-			string(REPLACE " " "," TMP4 ${TMP3})
-			set(${processed_flags_out} ${TMP4} PARENT_SCOPE)
-		endfunction()
-
-		# Process flags
-		process_flags(${CMAKE_CXX_FLAGS} CMAKE_CXX_FLAGS_PROCESSED)
-		process_flags(${CMAKE_CXX_FLAGS_DEBUG} CMAKE_CXX_FLAGS_DEBUG_PROCESSED)
-		process_flags(${CMAKE_CXX_FLAGS_RELWITHDEBINFO} CMAKE_CXX_FLAGS_RELWITHDEBINFO_PROCESSED)
-		process_flags(${CMAKE_CXX_FLAGS_RELEASE} CMAKE_CXX_FLAGS_RELEASE_PROCESSED)
-
-		# Set CUDA flags
-		# compute_30 <==> Equivalent to Kepler cards, (GTX 680M, etc)
-		# sm_50 <==> Maxwell cards (low-end), (940M, etc)
-		# sm_52 <==> Maxwell cards (high end), (GTX 970M, GTX 980 Ti, etc)
-		# sm_61 <==> Pascal cards (first gen), (1070, 1080, Titan X, etc)
-		set(CMAKE_CUDA_FLAGS "-D_WINDOWS -expt-relaxed-constexpr -gencode arch=compute_30,code=sm_52 -Xcompiler=${CMAKE_CXX_FLAGS_PROCESSED}")
-		set(CMAKE_CUDA_FLAGS_DEBUG "-O0 -g -lineinfo -Xcompiler=${CMAKE_CXX_FLAGS_DEBUG_PROCESSED}")
-		set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-O3 -use_fast_math -g -lineinfo -Xcompiler=${CMAKE_CXX_FLAGS_RELWITHDEBINFO_PROCESSED}")
-		set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -use_fast_math -Xcompiler=${CMAKE_CXX_FLAGS_RELEASE_PROCESSED}")
-
-		# Print compiler flags
-		message("------------------------------")
-		message("-- Compiler flags")
-		message("-- C++ flags")
-		message("CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS})
-		message("CMAKE_CXX_FLAGS_DEBUG: " ${CMAKE_CXX_FLAGS_DEBUG})
-		message("CMAKE_CXX_FLAGS_RELWITHDEBINFO: " ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-		message("CMAKE_CXX_FLAGS_RELEASE: " ${CMAKE_CXX_FLAGS_RELEASE})
-		message("-- CUDA flags")
-		message("CMAKE_CUDA_FLAGS: " ${CMAKE_CUDA_FLAGS})
-		message("CMAKE_CUDA_FLAGS_DEBUG: " ${CMAKE_CUDA_FLAGS_DEBUG})
-		message("CMAKE_CUDA_FLAGS_RELWITHDEBINFO: " ${CMAKE_CUDA_FLAGS_RELWITHDEBINFO})
-		message("CMAKE_CUDA_FLAGS_RELEASE: " ${CMAKE_CUDA_FLAGS_RELEASE})
-		message("------------------------------")
-	endif()
-
-elseif(EMSCRIPTEN)
-	# Emscripten flags
-	# -Wall -Wextra = Enable most warnings
-	# -std=c++14 = Enable C++14 support
-	# -fno-strict-aliasing = Disable strict aliasing optimizations
-	# -s USE_SDL=2 = Use SDL2 library
-	# -s TOTAL_MEMORY=1073741824 = 1GiB heap, change this value if you need more
-	# -DPH_STATIC_LINK_RENDERER = Link renderer statically instead of dynamically
-	# --preload-file resources = Load "resources" directory into generated javascript
-	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -s USE_SDL=2 -s TOTAL_MEMORY=1073741824 -s WASM=0 -s DEMANGLE_SUPPORT=1 -DPH_STATIC_LINK_RENDERER --preload-file res --preload-file res_compgl")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-
-elseif(IOS)
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -fno-strict-aliasing -DSFZ_IOS -DPH_STATIC_LINK_RENDERER")
-	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
-
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-	# macOS flags
-	# -Wall -Wextra = Enable most warnings
-	# -std=c++14 = Enable C++14 support
-	# -march=sandybridge = Require at least a Sandy Bridge Intel CPU to run code
-	# -fno-strict-aliasing = Disable strict aliasing optimizations
-	# -DSFZ_NO_DEBUG = Used by sfzCore to disable assertions and such on release builds
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -march=sandybridge -fno-strict-aliasing")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -ffast-math -g -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DSFZ_NO_DEBUG")
-	set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-
-else()
-	message(FATAL_ERROR "Not implemented")
-endif()
-
-# Directories
+# Phantasy Engine
 # ------------------------------------------------------------------------------------------------
 
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
-set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(EXTERNALS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/externals)
-set(RESOURCES_DIR_NAME res)
-set(RESOURCES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${RESOURCES_DIR_NAME})
+set(PHANTASY_ENGINE_DIR ${ROOT_DIR}/PhantasyEngine)
 
-# Dependencies
+include(${PHANTASY_ENGINE_DIR}/PhantasyEngine.cmake)
+
+phSetCompilerFlags()
+phPrintCompilerFlags()
+
+# Temp
 # ------------------------------------------------------------------------------------------------
 
-# Make all projects compile to the same directory
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+# Directories
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(EXTERNALS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/externals)
+set(RESOURCES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/res)
 
 # Include DownloadProject for acquiring dependencies
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DownloadProject.cmake)
 
 # SDL2
 # ${SDL2_FOUND}, ${SDL2_INCLUDE_DIRS}, ${SDL2_LIBRARIES} and ${SDL2_RUNTIME_FILES}
-message("Acquiring SDL2")
-download_project(
-	PROJ                sdl2
-	PREFIX              externals
-	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-SDL2.git
-	GIT_TAG             1a44fa61353e86f48efc17e31d575a11382c59d6
-	UPDATE_DISCONNECTED 1
-	QUIET
-)
-add_subdirectory(${sdl2_SOURCE_DIR} ${CMAKE_BINARY_DIR}/sdl2)
-message("Finished acquiring SDL2")
-
-# stb libraries
-# ${STB_FOUND}, ${STB_INCLUDE_DIRS}
-message("Acquiring stb libraries")
-download_project(
-	PROJ                stb
-	PREFIX              externals
-	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-stb.git
-	GIT_TAG             02a690a8110f007ff2edbf4e9571cdd7bfc8e9cb
-	UPDATE_DISCONNECTED 1
-	QUIET
-)
-add_subdirectory(${stb_SOURCE_DIR} ${CMAKE_BINARY_DIR}/stb)
-message("Finished acquiring stb libraries")
+set(PH_SDL2_ROOT ${ROOT_DIR}/Dependency-SDL2)
+phAddSDL2()
 
 # sfzCore
 # ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
-#message("Acquiring sfzCore")
-#download_project(
-#	PROJ                sfzCore
-#	PREFIX              externals
-#	GIT_REPOSITORY      https://github.com/PetorSFZ/sfzCore.git
-#	GIT_TAG             380611a616f0ff1d9fb241b82fc401087f1a61ba
-#	UPDATE_DISCONNECTED 1
-#	QUIET
-#)
-#add_subdirectory(${sfzCore_SOURCE_DIR})
-#message("Finished acquiring sfzCore")
-add_subdirectory(
-	${ROOT_DIR}/sfzCore
-	${CMAKE_BINARY_DIR}/sfzCore
-)
+# ${SFZ_CORE_OPENGL_FOUND}, ${SFZ_CORE_OPENGL_INCLUDE_DIRS}, ${SFZ_CORE_OPENGL_LIBRARIES}, ${SFZ_CORE_OPENGL_RUNTIME_FILES}
+set(PH_SFZ_CORE_ROOT ${ROOT_DIR}/sfzCore)
+set(SFZ_CORE_OPENGL true)
+phAddSfzCore()
 
-# dear imgui
-# ${IMGUI_FOUND}, ${IMGUI_INCLUDE_DIRS} and ${IMGUI_LIBRARIES}
-message("Acquiring dear imgui")
-download_project(
-	PROJ                imgui
-	PREFIX              externals
-	GIT_REPOSITORY      https://github.com/PhantasyEngine/Dependency-imgui.git
-	GIT_TAG             f130912e438469fdbe3a2f2fb2d9b07574092559
-	UPDATE_DISCONNECTED 1
-	QUIET
-)
-add_subdirectory(${imgui_SOURCE_DIR} ${CMAKE_BINARY_DIR}/imgui)
-message("Finished acquiring dear imgui")
-#add_subdirectory(
-#	${ROOT_DIR}/Dependency-imgui
-#	${CMAKE_BINARY_DIR}/Dependency-imgui
-#)
+# stb: ${STB_FOUND}, ${STB_INCLUDE_DIRS}
+# dear-imgui: ${IMGUI_FOUND}, ${IMGUI_INCLUDE_DIRS}, ${IMGUI_LIBRARIES}
+phAddBundledExternals()
 
-# sfzGL
-add_subdirectory(
-	${ROOT_DIR}/sfzGL
-	${CMAKE_BINARY_DIR}/sfzGL
-)
+phAddPhantasyEngineTargets()
 
-# Phantasy Engine - Shared Interface
-add_subdirectory(
-	${ROOT_DIR}/PhantasyEngine-SharedInterface
-	${CMAKE_BINARY_DIR}/PhantasyEngine-SharedInterface
-)
-
-# Phantasy Engine
-# ${PHANTASY_ENGINE_FOUND}, ${PHANTASY_ENGINE_INCLUDE_DIRS} and ${PHANTASY_ENGINE_LIBRARIES}
-#message("Acquiring Phantasy Engine")
-#download_project(
-#	PROJ                PhantasyEngine
-#	PREFIX              externals
-#	URL                 ${CMAKE_CURRENT_SOURCE_DIR}/../PhantasyEngine
-#	GIT_REPOSITORY      https://github.com/PhantasyEngine/phCore.git
-#	GIT_TAG             22afd827fcedc880e4597a2df8fc8180c8349d8f
-#	UPDATE_DISCONNECTED 1
-#	QUIET
-#)
-#add_subdirectory(${PhantasyEngine_SOURCE_DIR})
-#message("Finished acquiring Phantasy Engine")
-add_subdirectory(
-	${ROOT_DIR}/PhantasyEngine-Core
-	${CMAKE_BINARY_DIR}/PhantasyEngine-Core
-)
-
-# Renderers, different depending on target platform
-if(EMSCRIPTEN OR IOS)
-	# CompatibleGL renderer when building for emscripten
-	set(PH_RENDERER_COMPATIBLE_GL_STATIC true)
-	add_subdirectory(
-		${ROOT_DIR}/Renderer-CompatibleGL
-		${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
-	)
-else()
-	if(CUDA_TRACER)
-		# Dynamically linked Cuda Raytracer renderer for Windows and macOS
-		add_subdirectory(
-			${ROOT_DIR}/Renderer-CudaRaytracer
-			${CMAKE_BINARY_DIR}/Renderer-CudaRaytracer
-		)
-	else()
-		# Dynamically linked CompatibleGL renderer for Windows and macOS
-		add_subdirectory(
-			${ROOT_DIR}/Renderer-CompatibleGL
-			${CMAKE_BINARY_DIR}/Renderer-CompatibleGL
-		)
-	endif()
-endif()
+phAddRendererCompatibleGL()
 
 # tinygltf
 # ${TINYGLTF_FOUND}, ${TINYGLTF_INCLUDE_DIRS}
@@ -274,36 +69,14 @@ add_executable(PhantasyTestbed ${SRC_FILES})
 
 target_include_directories(PhantasyTestbed PUBLIC
 	${SRC_DIR}
-	${SDL2_INCLUDE_DIRS}
-	${STB_INCLUDE_DIRS}
-	${IMGUI_INCLUDE_DIRS}
-	${SFZ_CORE_INCLUDE_DIRS}
-	${PH_SHARED_INTERFACE_INCLUDE_DIRS}
-	${PHANTASY_ENGINE_INCLUDE_DIRS}
-	${ASSIMP_INCLUDE_DIRS}
 	${TINYGLTF_INCLUDE_DIRS}
 )
 
-target_link_libraries(PhantasyTestbed
-	${SDL2_LIBRARIES}
-	${IMGUI_LIBRARIES}
-	${SFZ_CORE_LIBRARIES}
-	${PH_SHARED_INTERFACE_LIBRARIES}
-	${PHANTASY_ENGINE_LIBRARIES}
-	${ASSIMP_LIBRARIES}
-)
-
-if(EMSCRIPTEN OR IOS)
-	target_link_libraries(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
-else()
-	if(CUDA_TRACER)
-		# Ensure the Cuda Raytracer Renderer is built even though it is not explicitly linked to the exe
-		add_dependencies(PhantasyTestbed ${PH_RENDERER_CUDA_RAYTRACER_LIBRARIES})
-	else()
-		# Ensure the CompatibleGL Renderer is built even though it is not explicitly linked to the exe
-		add_dependencies(PhantasyTestbed ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES})
-	endif()
-endif()
+phLinkSDL2(PhantasyTestbed)
+phLinkSfzCore(PhantasyTestbed)
+phLinkBundledExternals(PhantasyTestbed)
+phLinkPhantasyEngine(PhantasyTestbed)
+phLinkRendererCompatibleGL(PhantasyTestbed)
 
 # Copy runtime files
 # ------------------------------------------------------------------------------------------------
@@ -313,79 +86,15 @@ if(MSVC)
 	file(COPY ${SDL2_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
 	file(COPY ${SDL2_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release)
 
-	file(COPY ${SFZ_GL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
-	file(COPY ${SFZ_GL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
-	file(COPY ${SFZ_GL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release)
-
-	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
-	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
-	file(COPY ${ASSIMP_DLLS} DESTINATION ${CMAKE_BINARY_DIR}/Release)
+	file(COPY ${SFZ_CORE_OPENGL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
+	file(COPY ${SFZ_CORE_OPENGL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
+	file(COPY ${SFZ_CORE_OPENGL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release)
 endif()
 
 # Create symlink script
 # ------------------------------------------------------------------------------------------------
 
-if(MSVC)
-
-	set(SYMLINK_FILE "${CMAKE_BINARY_DIR}/create_symlinks.bat")
-	set(DEBUG_DIR "${CMAKE_BINARY_DIR}/Debug")
-	set(RELWITHDEBINFO_DIR "${CMAKE_BINARY_DIR}/RelWithDebInfo")
-	set(RELEASE_DIR "${CMAKE_BINARY_DIR}/Release")
-
-	# Resources symlink dir
-	file(APPEND ${SYMLINK_FILE} ": Create PhantasyTestbed resources symlinks\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${CMAKE_BINARY_DIR}/${RESOURCES_DIR_NAME}\" \"${RESOURCES_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${DEBUG_DIR}/${RESOURCES_DIR_NAME}\" \"${RESOURCES_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELWITHDEBINFO_DIR}/${RESOURCES_DIR_NAME}\" \"${RESOURCES_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELEASE_DIR}/${RESOURCES_DIR_NAME}\" \"${RESOURCES_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "\n")
-
-	# Renderer-CompatibleGL symlink dir
-	if(CUDA_TRACER)
-		set(RENDERER_SYMLINK_DIR ${PH_RENDERER_CUDA_RAYTRACER_RUNTIME_SYMLINK_DIR})
-	else()
-		set(RENDERER_SYMLINK_DIR ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR})
-	endif()
-	get_filename_component(SYMLINK_DIR_NAME ${RENDERER_SYMLINK_DIR} NAME)
-	file(APPEND ${SYMLINK_FILE} ": Create Renderer-CompatibleGL symlinks\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${CMAKE_BINARY_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${DEBUG_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELWITHDEBINFO_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "mklink /D \"${RELEASE_DIR}/${SYMLINK_DIR_NAME}\" \"${RENDERER_SYMLINK_DIR}\"\n")
-	file(APPEND ${SYMLINK_FILE} "\n")
-
-else()
-	set(SYMLINK_FILE "${CMAKE_BINARY_DIR}/create_symlinks.sh")
-	set(DEBUG_DIR "${CMAKE_BINARY_DIR}/Debug")
-	set(RELWITHDEBINFO_DIR "${CMAKE_BINARY_DIR}/RelWithDebInfo")
-	set(RELEASE_DIR "${CMAKE_BINARY_DIR}/Release")
-
-	# Create directories
-	file(APPEND ${SYMLINK_FILE} "# Create Debug, Release and RelWithDebInfo directories\n")
-	file(APPEND ${SYMLINK_FILE} "# (These are used for some IDE's, such as Xcode. Not for makefiles.)\n")
-	file(APPEND ${SYMLINK_FILE} "mkdir ${DEBUG_DIR}\n")
-	file(APPEND ${SYMLINK_FILE} "mkdir ${RELWITHDEBINFO_DIR}\n")
-	file(APPEND ${SYMLINK_FILE} "mkdir ${RELEASE_DIR}\n")
-	file(APPEND ${SYMLINK_FILE} "\n")
-
-	# Resources symlink dir
-	file(APPEND ${SYMLINK_FILE} "# Create PhantasyTestbed resources symlinks\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${CMAKE_BINARY_DIR}/${RESOURCES_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${DEBUG_DIR}/${RESOURCES_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${RELWITHDEBINFO_DIR}/${RESOURCES_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${RESOURCES_DIR} ${RELEASE_DIR}/${RESOURCES_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "\n")
-
-	# Renderer-CompatibleGL symlink dir
-	get_filename_component(COMP_GL_SYMLINK_DIR_NAME ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} NAME)
-	file(APPEND ${SYMLINK_FILE} "# Create Renderer-CompatibleGL symlinks\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${CMAKE_BINARY_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${DEBUG_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${RELWITHDEBINFO_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "ln -s ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} ${RELEASE_DIR}/${COMP_GL_SYMLINK_DIR_NAME}\n")
-	file(APPEND ${SYMLINK_FILE} "\n")
-
-endif()
+phCreateSymlinkScript(${RESOURCES_DIR} ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_DIR})
 
 # iOS specific stuff
 # ------------------------------------------------------------------------------------------------
@@ -409,9 +118,9 @@ if (IOS)
 	)
 
 	# Copy Renderer-CompatibleGL's res dir into application bundle
-	get_filename_component(COMP_GL_RES_DIR_NAME ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} NAME)
+	get_filename_component(COMP_GL_RES_DIR_NAME ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_DIR} NAME)
 	add_custom_command(TARGET PhantasyTestbed POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_directory
-		${PH_RENDERER_COMPATIBLE_GL_RUNTIME_SYMLINK_DIR} $<TARGET_FILE_DIR:PhantasyTestbed>/${COMP_GL_RES_DIR_NAME}
+		${PH_RENDERER_COMPATIBLE_GL_RUNTIME_DIR} $<TARGET_FILE_DIR:PhantasyTestbed>/${COMP_GL_RES_DIR_NAME}
 	)
 endif()
