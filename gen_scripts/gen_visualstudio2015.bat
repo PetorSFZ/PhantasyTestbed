@@ -1,5 +1,8 @@
+: Run script in its own context
+setlocal
+
 : Set working directory to location of this file
-cd %dp0
+pushd %~dp0
 
 : Set working directory to root of project
 cd ..
@@ -14,5 +17,3 @@ cmake .. -G "Visual Studio 14 2015 Win64"
 
 : Run create_symlinks.bat script
 call create_symlinks.bat
-
-cd ..
