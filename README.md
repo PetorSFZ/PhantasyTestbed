@@ -3,16 +3,11 @@ A simple application using Phantasy Engine. The goal is to eventually turn it in
 
 Currently in a pretty rough state, may or may not build properly.
 
-Currently expects to be placed inside the same directory containing PhantasyEngine-SharedInterface, PhantasyEngine-Core, sfzCore, sfzGL, Renderer-WebGL and Renderer-ModernGL. I.e. something like this:
+Currently expects to be placed inside the same directory containing PhantasyEngine. I.e. something like this:
 
 ~~~
 PhantasyEngineDevelopmentDir/
-	sfzCore/
-	sfzGL/
-	PhantasyEngine-SharedInterface/
-	PhantasyEngine-Core/
-	Renderer-WebGL/
-	Renderer-ModernGL/
+	PhantasyEngine/
 	PhantasyTestbed/
 		README.md* <-- The readme you are currently reading!
 ~~~
@@ -55,6 +50,3 @@ In order to run locally in a browser you need to host the files. Recommend using
    1. `brew install python3`
    2. `pip3 install http-here`
    3. `python3 -m http.server --bind 127.0.0.1`
-
-
-
