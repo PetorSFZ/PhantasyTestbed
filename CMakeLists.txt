@@ -46,19 +46,11 @@ phAddPhantasyEngineTargets()
 
 phAddRendererCompatibleGL()
 
-# tinygltf
-# ${TINYGLTF_FOUND}, ${TINYGLTF_INCLUDE_DIRS}
-add_subdirectory(${EXTERNALS_DIR}/tinygltf)
-
 # Executable
 # ------------------------------------------------------------------------------------------------
 
 set(SRC_FILES
 	${SRC_DIR}/Cube.hpp
-	${SRC_DIR}/GltfLoader.hpp
-	${SRC_DIR}/GltfLoader.cpp
-	${SRC_DIR}/GltfWriter.hpp
-	${SRC_DIR}/GltfWriter.cpp
 	${SRC_DIR}/PhantasyTestbedMain.cpp
 	${SRC_DIR}/TestbedLogic.hpp
 	${SRC_DIR}/TestbedLogic.cpp
@@ -69,7 +61,6 @@ add_executable(PhantasyTestbed ${SRC_FILES})
 
 target_include_directories(PhantasyTestbed PUBLIC
 	${SRC_DIR}
-	${TINYGLTF_INCLUDE_DIRS}
 )
 
 phLinkSDL2(PhantasyTestbed)
@@ -81,15 +72,7 @@ phLinkRendererCompatibleGL(PhantasyTestbed)
 # Copy runtime files
 # ------------------------------------------------------------------------------------------------
 
-if(MSVC)
-	file(COPY ${SDL2_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
-	file(COPY ${SDL2_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
-	file(COPY ${SDL2_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release)
-
-	file(COPY ${SFZ_CORE_OPENGL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug)
-	file(COPY ${SFZ_CORE_OPENGL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo)
-	file(COPY ${SFZ_CORE_OPENGL_RUNTIME_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release)
-endif()
+phMsvcCopyRuntimeDLLs(${SDL2_RUNTIME_FILES} ${SFZ_CORE_OPENGL_RUNTIME_FILES})
 
 # Create symlink script
 # ------------------------------------------------------------------------------------------------

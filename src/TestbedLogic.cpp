@@ -9,10 +9,10 @@
 #include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/sdl/ButtonState.hpp>
+#include <ph/util/GltfLoader.hpp>
+#include <ph/util/GltfWriter.hpp>
 
 #include "Cube.hpp"
-#include "GltfLoader.hpp"
-#include "GltfWriter.hpp"
 
 using namespace ph;
 using namespace sfz;
