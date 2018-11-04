@@ -85,7 +85,6 @@ public:
 			for (uint32_t i = 0; i < staticScene.assets.meshes.size(); i++) {
 				phRenderEntity entity;
 				entity.meshIndex = i;
-				entity.transform = mat34::identity();
 				staticScene.renderEntities.add(entity);
 			}
 
@@ -112,7 +111,6 @@ public:
 			for (uint32_t i = 0; i < state.dynamicAssets.meshes.size(); i++) {
 				phRenderEntity entity;
 				entity.meshIndex = i;
-				entity.transform = mat34::identity();
 				state.renderEntities.add(entity);
 			}
 
