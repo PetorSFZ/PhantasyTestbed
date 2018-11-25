@@ -36,6 +36,7 @@ build_make_release/
 build_msvc2015/
 build_msvc2015_cuda/
 build_msvc2017/
+build_msvc2017_v140/
 build_ninja_debug/
 build_ninja_release/
 build_xcode/
