@@ -379,6 +379,9 @@ public:
 	void preRenderHook(
 		UpdateableState& state, const UpdateInfo& updateInfo, Renderer& renderer) override final
 	{
+		(void)updateInfo;
+		(void)renderer;
+
 		// Grab common ECS stuff
 		NaiveEcsHeader* ecs = mEcsContainer.getNaive();
 		ComponentMask* masks = ecs->componentMasks();
