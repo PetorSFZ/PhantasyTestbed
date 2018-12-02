@@ -8,6 +8,8 @@
 
 #include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
+#include <ph/ecs/naive/NaiveECS.hpp>
+#include <ph/ecs/naive/NaiveEcsEditor.hpp>
 #include <ph/sdl/ButtonState.hpp>
 #include <ph/util/GltfLoader.hpp>
 #include <ph/util/GltfWriter.hpp>
@@ -17,6 +19,12 @@
 using namespace ph;
 using namespace sfz;
 using namespace ph::sdl;
+
+// ECS component types
+// ------------------------------------------------------------------------------------------------
+
+constexpr uint32_t RENDER_ENTITY_TYPE = 1u << 0u;
+constexpr uint32_t SPHERE_LIGHT_TYPE = 1u << 1u;
 
 // Helper structs
 // ------------------------------------------------------------------------------------------------
@@ -57,12 +65,76 @@ public:
 	ph::GameControllerState mCtrl;
 
 	Setting* mShowImguiDemo = nullptr;
+	ph::EcsContainer mEcsContainer;
+	ph::NaiveEcsEditor mNaiveEcsEditor;
 
 	// Overloaded methods from GameLogic
 	// --------------------------------------------------------------------------------------------
 
 	void initialize(UpdateableState& state, Renderer& renderer) override final
 	{
+		// Create ECS
+		const uint32_t MAX_NUM_ENTITIES = 100;
+		const uint32_t NUM_COMPONENT_TYPES = 2;
+		const uint32_t COMPONENT_SIZES[NUM_COMPONENT_TYPES] = {
+			sizeof(phRenderEntity),
+			sizeof(phSphereLight)
+		};
+		mEcsContainer = ph::createEcs(MAX_NUM_ENTITIES, COMPONENT_SIZES, NUM_COMPONENT_TYPES);
+
+		// Init ECS viewer
+		ComponentInfo componentInfos[NUM_COMPONENT_TYPES];
+
+		componentInfos[0].componentType = RENDER_ENTITY_TYPE;
+		componentInfos[0].componentName.printf("phRenderEntity");
+		componentInfos[0].componentEditor =
+			[](uint8_t* state, uint8_t* componentData, NaiveEcsHeader* ecs, uint32_t entity) {
+
+			(void)state;
+			(void)ecs;
+			(void)entity;
+			phRenderEntity& renderEntity = *reinterpret_cast<phRenderEntity*>(componentData);
+
+			ImGui::InputFloat3("Scale", renderEntity.scale.data());
+			ImGui::InputFloat3("Translation", renderEntity.translation.data());
+			if (ImGui::InputFloat4("Rotation quaternion", renderEntity.rotation.vector.data())) {
+				renderEntity.rotation = normalize(renderEntity.rotation);
+			}
+			vec3 eulerRot = renderEntity.rotation.toEuler();
+			if (ImGui::InputFloat3("Rotation euler", eulerRot.data())) {
+				renderEntity.rotation = Quaternion::fromEuler(eulerRot);
+				renderEntity.rotation = normalize(renderEntity.rotation);
+			}
+		};
+
+		componentInfos[1].componentType = SPHERE_LIGHT_TYPE;
+		componentInfos[1].componentName.printf("phSphereLight");
+		componentInfos[1].componentEditor =
+			[](uint8_t* state, uint8_t* componentData, NaiveEcsHeader* ecs, uint32_t entity) {
+
+			(void)state;
+			(void)ecs;
+			(void)entity;
+			phSphereLight& sphereLight = *reinterpret_cast<phSphereLight*>(componentData);
+
+			ImGui::InputFloat3("Position", sphereLight.pos.data());
+			ImGui::InputFloat("Radius", &sphereLight.radius);
+			ImGui::InputFloat("Range", &sphereLight.range);
+			ImGui::InputFloat("Strength", &sphereLight.strength);
+			vec3 color = vec3(sphereLight.color) * (1.0f / 255.0f);
+			if (ImGui::ColorEdit3("Color", color.data())) {
+				color *= 255.0f;
+				color += vec3(0.5f); // To round properly
+				sphereLight.color = vec3_u8(uint8_t(color.x), uint8_t(color.y), uint8_t(color.z));
+			}
+		};
+
+		mNaiveEcsEditor.init(componentInfos, NUM_COMPONENT_TYPES);
+
+		// Create and add cube mesh
+		ph::Mesh cube = createCubeModel(getDefaultAllocator(), 0);
+		state.dynamicAssets.meshes.add(cube);
+
 		// Add default material
 		phMaterial defaultMaterial;
 		defaultMaterial.albedo = vec4_u8(255, 0, 0, 255);
@@ -93,7 +165,8 @@ public:
 			tmpLight.pos = vec3(0.0f, 3.0f, 0.0f);
 			tmpLight.range = 70.0f;
 			tmpLight.radius = 0.5f;
-			tmpLight.strength = vec3(150.0f);
+			tmpLight.color = vec3_u8(255);
+			tmpLight.strength = 150.0f;
 			tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 			staticScene.sphereLights.add(tmpLight);
 
@@ -101,7 +174,7 @@ public:
 			renderer.setStaticScene(staticScene);
 		}
 		else {
-			// Load sponza level
+/*			// Load sponza level
 			if (!loadAssetsFromGltf("res/sponza.gltf", state.dynamicAssets)) {
 				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 			}
@@ -129,7 +202,7 @@ public:
 			tmpLight.radius = 0.5f;
 			tmpLight.strength = vec3(150.0f);
 			tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
-			state.dynamicSphereLights.add(tmpLight);
+			state.dynamicSphereLights.add(tmpLight);*/
 		}
 
 		// Initialize camera
@@ -140,22 +213,47 @@ public:
 		state.cam.far = 200.0f;
 		state.cam.vertFovDeg = 60.0f;
 
-		/// Add dynamic lights
-		vec3 lightColors[] = {
-			vec3(1.0f, 0.0f, 1.0f),
-			vec3(1.0f, 1.0f, 1.0f)
+		// Uploaded dynamic level assets to renderer
+		DynArray<phConstImageView> textureViews;
+		for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
+		renderer.setTextures(textureViews);
+		renderer.setMaterials(state.dynamicAssets.materials);
+		DynArray<phConstMeshView> meshViews;
+		for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
+		renderer.setDynamicMeshes(meshViews);
+
+		// Allocate memory for render entities
+		state.renderEntities.create(MAX_NUM_ENTITIES, getDefaultAllocator());
+
+		// Common ECS stuff
+		NaiveEcsHeader* ecs = mEcsContainer.getNaive();
+
+		// Add dynamic light entities
+		vec3_u8 lightColors[] = {
+			vec3_u8(255, 0, 255),
+			vec3_u8(255, 255, 255)
 		};
-		uint32_t numLights = sizeof(lightColors) / sizeof(vec3);
+		uint32_t numLights = sizeof(lightColors) / sizeof(vec3_u8);
 		for (uint32_t i = 0; i < numLights; i++) {
-			phSphereLight tmp;
+			phSphereLight light;
 
-			tmp.pos = vec3(-50.0f + 100.0f * i / (numLights - 1), 5.0f, 0.0f);
-			tmp.range = 70.0f;
-			tmp.strength = 300.0f * lightColors[i];
-			tmp.radius = 0.5f;
-			tmp.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
+			light.pos = vec3(-50.0f + 100.0f * i / (numLights - 1), 5.0f, 0.0f);
+			light.range = 70.0f;
+			light.color = lightColors[i];
+			light.strength = 300.0f;
+			light.radius = 0.5f;
+			light.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 
-			state.dynamicSphereLights.add(tmp);
+			uint32_t lightEntity = ecs->createEntity();
+			ecs->addComponent(lightEntity, SPHERE_LIGHT_TYPE, light);
+		}
+
+		// Add a box entity
+		{
+			uint32_t entity = ecs->createEntity();
+			phRenderEntity renderEntity;
+			renderEntity.meshIndex = 0;
+			ecs->addComponent(entity, RENDER_ENTITY_TYPE, renderEntity);
 		}
 
 		GlobalConfig& cfg = ph::getGlobalConfig();
@@ -278,9 +376,45 @@ public:
 		return UpdateOp::NO_OP();
 	}
 
+	void preRenderHook(
+		UpdateableState& state, const UpdateInfo& updateInfo, Renderer& renderer) override final
+	{
+		// Grab common ECS stuff
+		NaiveEcsHeader* ecs = mEcsContainer.getNaive();
+		ComponentMask* masks = ecs->componentMasks();
+
+		// Copy render entities from ECS to list to draw
+		state.renderEntities.clear();
+		phRenderEntity* renderEntities = ecs->components<phRenderEntity>(RENDER_ENTITY_TYPE);
+		ComponentMask renderEntityMask =
+			ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
+		for (uint32_t entity = 0; entity < ecs->maxNumEntities; entity++) {
+			if (!masks[entity].fulfills(renderEntityMask)) continue;
+			state.renderEntities.add(renderEntities[entity]);
+		}
+
+		// Copy sphere lights from ECS to list to draw
+		state.dynamicSphereLights.clear();
+		phSphereLight* sphereLights = ecs->components<phSphereLight>(SPHERE_LIGHT_TYPE);
+		ComponentMask sphereLightyMask =
+			ComponentMask::activeMask() | ComponentMask::fromType(SPHERE_LIGHT_TYPE);
+		for (uint32_t entity = 0; entity < ecs->maxNumEntities; entity++) {
+			if (!masks[entity].fulfills(sphereLightyMask)) continue;
+			state.dynamicSphereLights.add(sphereLights[entity]);
+		}
+	}
+
 	void renderCustomImgui() override final
 	{
 		if (mShowImguiDemo->boolValue()) ImGui::ShowDemoWindow();
+	}
+
+	void injectConsoleMenu() override final
+	{
+		// View of ECS system
+		ph::NaiveEcsHeader* ecs = mEcsContainer.getNaive();
+		ImGui::SetNextWindowPos(vec2(1020.0f, 250.0f), ImGuiCond_Appearing);
+		mNaiveEcsEditor.render(ecs);
 	}
 
 	void onConsoleActivated() override final
