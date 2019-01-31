@@ -13,7 +13,7 @@ mkdir build_msvc2015
 cd build_msvc2015
 
 : Generate Visual Studio solution
-cmake .. -G "Visual Studio 14 2015 Win64"
+cmake .. -G "Visual Studio 14 2015 Win64" -T host=x64
 
 : Run create_symlinks.bat script
 call create_symlinks.bat
