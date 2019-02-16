@@ -416,7 +416,7 @@ public:
 	{
 		// View of ECS system
 		ph::NaiveEcsHeader* ecs = mEcsContainer.getNaive();
-		ImGui::SetNextWindowPos(vec2(1020.0f, 250.0f), ImGuiCond_Appearing);
+		ImGui::SetNextWindowPos(vec2(1020.0f, 250.0f), ImGuiCond_FirstUseEver);
 		mNaiveEcsEditor.render(ecs);
 	}
 
