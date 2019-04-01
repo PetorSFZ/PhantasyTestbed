@@ -129,7 +129,7 @@ public:
 			}
 		};
 
-		mNaiveEcsEditor.init(componentInfos, NUM_COMPONENT_TYPES);
+		mNaiveEcsEditor.init("Naive ECS Editor", componentInfos, NUM_COMPONENT_TYPES);
 
 		// Create and add cube mesh
 		ph::Mesh cube = createCubeModel(getDefaultAllocator(), 0);
@@ -416,7 +416,7 @@ public:
 	{
 		// View of ECS system
 		ph::NaiveEcsHeader* ecs = mEcsContainer.getNaive();
-		ImGui::SetNextWindowPos(vec2(1020.0f, 250.0f), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowPos(vec2(700.0f, 00.0f), ImGuiCond_FirstUseEver);
 		mNaiveEcsEditor.render(ecs);
 	}
 
