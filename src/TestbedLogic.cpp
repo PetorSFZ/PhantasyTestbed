@@ -376,7 +376,7 @@ public:
 		return UpdateOp::NO_OP();
 	}
 
-	void preRenderHook(
+	RenderSettings preRenderHook(
 		UpdateableState& state, const UpdateInfo& updateInfo, Renderer& renderer) override final
 	{
 		(void)updateInfo;
@@ -405,6 +405,10 @@ public:
 			if (!masks[entity].fulfills(sphereLightyMask)) continue;
 			state.dynamicSphereLights.add(sphereLights[entity]);
 		}
+
+		RenderSettings settings;
+		settings.clearColor = vec4(0.0f);
+		return settings;
 	}
 
 	void renderCustomImgui() override final
