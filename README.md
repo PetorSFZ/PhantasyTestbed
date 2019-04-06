@@ -16,7 +16,7 @@ PhantasyEngineDevelopmentDir/
 
 ### Windows
 
-Run `build_scripts/gen_visualstudio2015.bat`. All dependencies should be bundled (or downloaded using DownloadProject). If it does not work create an issue.
+Activate Windows 10 Developer Mode, then just open the directory with Visual Studio (2019+) directly. For VS 2017 use `build_scripts/gen_visualstudio2017.bat`.
 
 ### Web (Emscripten on Windows)
 
