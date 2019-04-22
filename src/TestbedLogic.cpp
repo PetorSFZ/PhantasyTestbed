@@ -8,8 +8,8 @@
 
 #include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
-#include <ph/ecs/naive/NaiveECS.hpp>
-#include <ph/ecs/naive/NaiveEcsEditor.hpp>
+#include <ph/state/GameState.hpp>
+#include <ph/state/GameStateEditor.hpp>
 #include <ph/sdl/ButtonState.hpp>
 #include <ph/util/GltfLoader.hpp>
 #include <ph/util/GltfWriter.hpp>
@@ -65,22 +65,22 @@ public:
 	ph::GameControllerState mCtrl;
 
 	Setting* mShowImguiDemo = nullptr;
-	ph::EcsContainer mEcsContainer;
-	ph::NaiveEcsEditor mNaiveEcsEditor;
+	ph::GameStateContainer mGameStateContainer;
+	ph::GameStateEditor mGameStateEditor;
 
 	// Overloaded methods from GameLogic
 	// --------------------------------------------------------------------------------------------
 
 	void initialize(UpdateableState& state, Renderer& renderer) override final
 	{
-		// Create ECS
+		// Create game state
 		const uint32_t MAX_NUM_ENTITIES = 100;
 		const uint32_t NUM_COMPONENT_TYPES = 2;
 		const uint32_t COMPONENT_SIZES[NUM_COMPONENT_TYPES] = {
 			sizeof(phRenderEntity),
 			sizeof(phSphereLight)
 		};
-		mEcsContainer = ph::createEcs(MAX_NUM_ENTITIES, COMPONENT_SIZES, NUM_COMPONENT_TYPES);
+		mGameStateContainer = ph::createGameState(MAX_NUM_ENTITIES, COMPONENT_SIZES, NUM_COMPONENT_TYPES);
 
 		// Init ECS viewer
 		ComponentInfo componentInfos[NUM_COMPONENT_TYPES];
@@ -88,10 +88,10 @@ public:
 		componentInfos[0].componentType = RENDER_ENTITY_TYPE;
 		componentInfos[0].componentName.printf("phRenderEntity");
 		componentInfos[0].componentEditor =
-			[](uint8_t* state, uint8_t* componentData, NaiveEcsHeader* ecs, uint32_t entity) {
+			[](uint8_t* editorState, uint8_t* componentData, GameStateHeader* state, uint32_t entity) {
 
+			(void)editorState;
 			(void)state;
-			(void)ecs;
 			(void)entity;
 			phRenderEntity& renderEntity = *reinterpret_cast<phRenderEntity*>(componentData);
 
@@ -110,10 +110,10 @@ public:
 		componentInfos[1].componentType = SPHERE_LIGHT_TYPE;
 		componentInfos[1].componentName.printf("phSphereLight");
 		componentInfos[1].componentEditor =
-			[](uint8_t* state, uint8_t* componentData, NaiveEcsHeader* ecs, uint32_t entity) {
+			[](uint8_t* editorState, uint8_t* componentData, GameStateHeader* state, uint32_t entity) {
 
+			(void)editorState;
 			(void)state;
-			(void)ecs;
 			(void)entity;
 			phSphereLight& sphereLight = *reinterpret_cast<phSphereLight*>(componentData);
 
@@ -129,7 +129,7 @@ public:
 			}
 		};
 
-		mNaiveEcsEditor.init("Naive ECS Editor", componentInfos, NUM_COMPONENT_TYPES);
+		mGameStateEditor.init("Game State Editor", componentInfos, NUM_COMPONENT_TYPES);
 
 		// Create and add cube mesh
 		ph::Mesh cube = createCubeModel(getDefaultAllocator(), 0);
@@ -225,8 +225,8 @@ public:
 		// Allocate memory for render entities
 		state.renderEntities.create(MAX_NUM_ENTITIES, getDefaultAllocator());
 
-		// Common ECS stuff
-		NaiveEcsHeader* ecs = mEcsContainer.getNaive();
+		// Common game state stuff
+		GameStateHeader* ecs = mGameStateContainer.getHeader();
 
 		// Add dynamic light entities
 		vec3_u8 lightColors[] = {
@@ -383,25 +383,25 @@ public:
 		(void)renderer;
 
 		// Grab common ECS stuff
-		NaiveEcsHeader* ecs = mEcsContainer.getNaive();
-		ComponentMask* masks = ecs->componentMasks();
+		GameStateHeader* gameState = mGameStateContainer.getHeader();
+		ComponentMask* masks = gameState->componentMasks();
 
 		// Copy render entities from ECS to list to draw
 		state.renderEntities.clear();
-		phRenderEntity* renderEntities = ecs->components<phRenderEntity>(RENDER_ENTITY_TYPE);
+		phRenderEntity* renderEntities = gameState->components<phRenderEntity>(RENDER_ENTITY_TYPE);
 		ComponentMask renderEntityMask =
 			ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
-		for (uint32_t entity = 0; entity < ecs->maxNumEntities; entity++) {
+		for (uint32_t entity = 0; entity < gameState->maxNumEntities; entity++) {
 			if (!masks[entity].fulfills(renderEntityMask)) continue;
 			state.renderEntities.add(renderEntities[entity]);
 		}
 
 		// Copy sphere lights from ECS to list to draw
 		state.dynamicSphereLights.clear();
-		phSphereLight* sphereLights = ecs->components<phSphereLight>(SPHERE_LIGHT_TYPE);
+		phSphereLight* sphereLights = gameState->components<phSphereLight>(SPHERE_LIGHT_TYPE);
 		ComponentMask sphereLightyMask =
 			ComponentMask::activeMask() | ComponentMask::fromType(SPHERE_LIGHT_TYPE);
-		for (uint32_t entity = 0; entity < ecs->maxNumEntities; entity++) {
+		for (uint32_t entity = 0; entity < gameState->maxNumEntities; entity++) {
 			if (!masks[entity].fulfills(sphereLightyMask)) continue;
 			state.dynamicSphereLights.add(sphereLights[entity]);
 		}
@@ -419,9 +419,9 @@ public:
 	void injectConsoleMenu() override final
 	{
 		// View of ECS system
-		ph::NaiveEcsHeader* ecs = mEcsContainer.getNaive();
+		ph::GameStateHeader* gameState = mGameStateContainer.getHeader();
 		ImGui::SetNextWindowPos(vec2(700.0f, 00.0f), ImGuiCond_FirstUseEver);
-		mNaiveEcsEditor.render(ecs);
+		mGameStateEditor.render(gameState);
 	}
 
 	void onConsoleActivated() override final
