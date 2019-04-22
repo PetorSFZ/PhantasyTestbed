@@ -11,7 +11,3 @@ cd build_xcode_macos
 
 # Generate build files
 cmake .. -GXcode
-
-# Run create_symlinks.sh shell script
-chmod +x create_symlinks.sh
-./create_symlinks.sh
