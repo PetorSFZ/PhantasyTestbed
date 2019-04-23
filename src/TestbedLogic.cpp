@@ -74,15 +74,43 @@ public:
 	void initialize(UpdateableState& state, Renderer& renderer) override final
 	{
 		// Create game state
+		const uint32_t NUM_SINGLETONS = 1;
+		const uint32_t SINGLETON_SIZES[NUM_SINGLETONS] = {
+			sizeof(phRenderEntity)
+		};
 		const uint32_t MAX_NUM_ENTITIES = 100;
 		const uint32_t NUM_COMPONENT_TYPES = 2;
 		const uint32_t COMPONENT_SIZES[NUM_COMPONENT_TYPES] = {
 			sizeof(phRenderEntity),
 			sizeof(phSphereLight)
 		};
-		mGameStateContainer = ph::createGameState(MAX_NUM_ENTITIES, COMPONENT_SIZES, NUM_COMPONENT_TYPES);
+		mGameStateContainer = ph::createGameState(
+			NUM_SINGLETONS, SINGLETON_SIZES, MAX_NUM_ENTITIES, COMPONENT_SIZES, NUM_COMPONENT_TYPES);
 
 		// Init ECS viewer
+		SingletonInfo singletonInfos[NUM_SINGLETONS];
+
+		singletonInfos[0].singletonIndex = 0;
+		singletonInfos[0].singletonName.printf("phRenderEntity");
+		singletonInfos[0].singletonEditor =
+			[](uint8_t * userPtr, uint8_t * singletonData, GameStateHeader * state) {
+
+			(void)userPtr;
+			(void)state;
+			phRenderEntity& renderEntity = *reinterpret_cast<phRenderEntity*>(singletonData);
+
+			ImGui::InputFloat3("Scale", renderEntity.scale.data());
+			ImGui::InputFloat3("Translation", renderEntity.translation.data());
+			if (ImGui::InputFloat4("Rotation quaternion", renderEntity.rotation.vector.data())) {
+				renderEntity.rotation = normalize(renderEntity.rotation);
+			}
+			vec3 eulerRot = renderEntity.rotation.toEuler();
+			if (ImGui::InputFloat3("Rotation euler", eulerRot.data())) {
+				renderEntity.rotation = Quaternion::fromEuler(eulerRot);
+				renderEntity.rotation = normalize(renderEntity.rotation);
+			}
+		};
+
 		ComponentInfo componentInfos[NUM_COMPONENT_TYPES];
 
 		componentInfos[0].componentType = RENDER_ENTITY_TYPE;
@@ -129,7 +157,8 @@ public:
 			}
 		};
 
-		mGameStateEditor.init("Game State Editor", componentInfos, NUM_COMPONENT_TYPES);
+		mGameStateEditor.init(
+			"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES);
 
 		// Create and add cube mesh
 		ph::Mesh cube = createCubeModel(getDefaultAllocator(), 0);
