@@ -85,7 +85,7 @@ public:
 			sizeof(phSphereLight)
 		};
 		mGameStateContainer = ph::createGameState(
-			NUM_SINGLETONS, SINGLETON_SIZES, MAX_NUM_ENTITIES, COMPONENT_SIZES, NUM_COMPONENT_TYPES);
+			NUM_SINGLETONS, SINGLETON_SIZES, MAX_NUM_ENTITIES, NUM_COMPONENT_TYPES, COMPONENT_SIZES);
 
 		// Init ECS viewer
 		SingletonInfo singletonInfos[NUM_SINGLETONS];
@@ -273,13 +273,13 @@ public:
 			light.radius = 0.5f;
 			light.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 
-			uint32_t lightEntity = ecs->createEntity();
+			Entity lightEntity = ecs->createEntity();
 			ecs->addComponent(lightEntity, SPHERE_LIGHT_TYPE, light);
 		}
 
 		// Add a box entity
 		{
-			uint32_t entity = ecs->createEntity();
+			Entity entity = ecs->createEntity();
 			phRenderEntity renderEntity;
 			renderEntity.meshIndex = 0;
 			ecs->addComponent(entity, RENDER_ENTITY_TYPE, renderEntity);
