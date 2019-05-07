@@ -453,6 +453,17 @@ public:
 		mGameStateEditor.render(gameState);
 	}
 
+	uint32_t injectConsoleMenuNumWindowsToDockInitially() override final 
+	{
+		return 1;
+	}
+
+	const char* injectConsoleMenuNameOfWindowToDockInitially(uint32_t idx) override final
+	{
+		(void)idx;
+		return "Game State Editor";
+	}
+
 	void onConsoleActivated() override final
 	{
 
