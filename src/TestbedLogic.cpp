@@ -177,7 +177,7 @@ public:
 			staticScene.assets.materials.add(defaultMaterial);
 
 			// Load sponza level
-			if (!loadAssetsFromGltf("res/sponza.gltf", staticScene.assets)) {
+			if (!loadAssetsFromGltf("res/sponza.gltf", staticScene.assets, state.resourceManager)) {
 				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 			}
 
@@ -243,9 +243,6 @@ public:
 		state.cam.vertFovDeg = 60.0f;
 
 		// Uploaded dynamic level assets to renderer
-		DynArray<phConstImageView> textureViews;
-		for (const auto& texture : state.dynamicAssets.textures) textureViews.add(texture);
-		renderer.setTextures(textureViews);
 		renderer.setMaterials(state.dynamicAssets.materials);
 		DynArray<phConstMeshView> meshViews;
 		for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
