@@ -161,8 +161,8 @@ public:
 			"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES);
 
 		// Create and add cube mesh
-		ph::Mesh cube = createCubeModel(getDefaultAllocator(), 0);
-		state.dynamicAssets.meshes.add(cube);
+		//ph::Mesh cube = createCubeModel(getDefaultAllocator(), 0);
+		//state.dynamicAssets.meshes.add(cube);
 
 		// Add default material
 		phMaterial defaultMaterial;
@@ -182,8 +182,9 @@ public:
 			}
 
 			// Create RenderEntitites to render
-			staticScene.renderEntities.create(staticScene.assets.meshes.size());
-			for (uint32_t i = 0; i < staticScene.assets.meshes.size(); i++) {
+			constexpr uint32_t HACK_NUM_SPONZA_COMPONENTS = 394;
+			staticScene.renderEntities.create(HACK_NUM_SPONZA_COMPONENTS);
+			for (uint32_t i = 0; i < HACK_NUM_SPONZA_COMPONENTS; i++) {
 				phRenderEntity entity;
 				entity.meshIndex = i;
 				staticScene.renderEntities.add(entity);
@@ -244,9 +245,9 @@ public:
 
 		// Uploaded dynamic level assets to renderer
 		renderer.setMaterials(state.dynamicAssets.materials);
-		DynArray<phConstMeshView> meshViews;
-		for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
-		renderer.setDynamicMeshes(meshViews);
+		//DynArray<phConstMeshView> meshViews;
+		//for (const auto& mesh : state.dynamicAssets.meshes) meshViews.add(mesh);
+		//renderer.setDynamicMeshes(meshViews);
 
 		// Allocate memory for render entities
 		state.renderEntities.create(MAX_NUM_ENTITIES, getDefaultAllocator());
