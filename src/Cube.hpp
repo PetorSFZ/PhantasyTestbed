@@ -1,3 +1,4 @@
+#if 0
 
 #include <sfz/math/Vector.hpp>
 #include <sfz/memory/Allocator.hpp>
@@ -175,3 +176,5 @@ inline ph::Mesh createCubeModel(Allocator* allocator, uint32_t materialIndex) no
 
 	return mesh;
 }
+
+#endif
