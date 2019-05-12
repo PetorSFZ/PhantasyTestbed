@@ -162,11 +162,20 @@ public:
 
 		{
 			// Load sponza level
-			Mesh mesh = loadAssetsFromGltf("res/sponza.gltf",
-				state.resourceManager, sfz::getDefaultAllocator());
-			if (mesh.components.size() == 0) {
+			Mesh mesh;
+			DynArray<ImageAndPath> textures;
+			bool success = loadAssetsFromGltf(
+				"res/sponza.gltf",
+				mesh,
+				textures,
+				sfz::getDefaultAllocator(),
+				&state.resourceManager);
+			if (!success) {
 				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 			}
+
+			// Upload sponza level to Renderer via resource manager
+			state.resourceManager.registerMesh("res/sponza.gltf", mesh, textures);
 
 			// Create RenderEntity
 			StaticScene staticScene;
