@@ -160,6 +160,11 @@ public:
 		mGameStateEditor.init(
 			"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES);
 
+		// Load cube mesh
+		ph::Mesh cubeMesh = createCubeMesh(getDefaultAllocator());
+		sfz::DynArray<ph::ImageAndPath> noImages;
+		uint32_t cubeMeshIdx= state.resourceManager.registerMesh("virtual/cube", cubeMesh, noImages);
+
 		{
 			// Load sponza level
 			Mesh mesh;
@@ -175,14 +180,14 @@ public:
 			}
 
 			// Upload sponza level to Renderer via resource manager
-			state.resourceManager.registerMesh("res/sponza.gltf", mesh, textures);
+			uint32_t sponzaIdx = state.resourceManager.registerMesh("res/sponza.gltf", mesh, textures);
 
 			// Create RenderEntity
 			StaticScene staticScene;
 			staticScene.renderEntities.create(1);
 			{
 				phRenderEntity entity;
-				entity.meshIndex = 0;
+				entity.meshIndex = sponzaIdx;
 				staticScene.renderEntities.add(entity);
 			}
 
@@ -238,7 +243,7 @@ public:
 		{
 			Entity entity = ecs->createEntity();
 			phRenderEntity renderEntity;
-			renderEntity.meshIndex = 0;
+			renderEntity.meshIndex = cubeMeshIdx;
 			ecs->addComponent(entity, RENDER_ENTITY_TYPE, renderEntity);
 		}
 
