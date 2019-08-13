@@ -5,9 +5,12 @@
 #include <sfz/Logging.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
+#include <sfz/math/ProjectionMatrices.hpp>
 
 #include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
+#include <ph/renderer/BuiltinShaderTypes.hpp>
+#include <ph/rendering/SphereLight.hpp>
 #include <ph/state/GameState.hpp>
 #include <ph/state/GameStateEditor.hpp>
 #include <ph/sdl/ButtonState.hpp>
@@ -19,6 +22,53 @@
 using namespace ph;
 using namespace sfz;
 using namespace ph::sdl;
+
+// CameraData struct
+// ------------------------------------------------------------------------------------------------
+
+struct CameraData {
+	sfz::vec3 pos = sfz::vec3(0.0f);
+	sfz::vec3 dir = sfz::vec3(0.0f); 
+	sfz::vec3 up = sfz::vec3(0.0f); 
+	float near = 0.0f;
+	float far = 0.0f;
+	float vertFovDeg = 0.0f;
+};
+
+// RenderEntity struct
+// ------------------------------------------------------------------------------------------------
+
+struct RenderEntity final {
+	sfz::Quaternion rotation = sfz::Quaternion::identity();
+	sfz::vec3 scale = sfz::vec3(1.0f);
+	sfz::vec3 translation = sfz::vec3(0.0f);
+	StringID meshId = StringID::invalid();
+
+	sfz::mat34 transform() const
+	{
+		// Apply rotation first
+		sfz::mat34 tmp = rotation.toMat34();
+
+		// Matrix multiply in scale (order does not matter)
+		sfz::vec4 scaleVec = sfz::vec4(scale, 1.0f);
+		tmp.row0 *= scaleVec;
+		tmp.row1 *= scaleVec;
+		tmp.row2 *= scaleVec;
+
+		// Add translation (last)
+		tmp.setColumn(3, translation);
+
+		return tmp;
+	}
+};
+
+// StaticScene struct
+// ------------------------------------------------------------------------------------------------
+
+struct StaticScene final {
+	DynArray<RenderEntity> renderEntities;
+	DynArray<phSphereLight> sphereLights;
+};
 
 // ECS component types
 // ------------------------------------------------------------------------------------------------
@@ -61,6 +111,9 @@ public:
 	// Members
 	// --------------------------------------------------------------------------------------------
 
+	CameraData mCam;
+	StaticScene mStaticScene;
+
 	EmulatedGameController mEmulatedController;
 	ph::GameControllerState mCtrl;
 
@@ -71,17 +124,24 @@ public:
 	// Overloaded methods from GameLogic
 	// --------------------------------------------------------------------------------------------
 
-	void initialize(UpdateableState& state, Renderer& renderer) override final
+	void initialize(Renderer& renderer) override final
 	{
+		sfz::StringCollection& resStrings = getResourceStrings();
+
+		// Load renderer config
+		bool rendererLoadConfigSuccess =
+			renderer.loadConfiguration("res_ph/shaders/default_renderer_config.json");
+		sfz_assert_debug(rendererLoadConfigSuccess);
+
 		// Create game state
 		const uint32_t NUM_SINGLETONS = 1;
 		const uint32_t SINGLETON_SIZES[NUM_SINGLETONS] = {
-			sizeof(phRenderEntity)
+			sizeof(RenderEntity)
 		};
 		const uint32_t MAX_NUM_ENTITIES = 100;
 		const uint32_t NUM_COMPONENT_TYPES = 2;
 		const uint32_t COMPONENT_SIZES[NUM_COMPONENT_TYPES] = {
-			sizeof(phRenderEntity),
+			sizeof(RenderEntity),
 			sizeof(phSphereLight)
 		};
 		mGameStateContainer = ph::createGameState(
@@ -97,7 +157,7 @@ public:
 
 			(void)userPtr;
 			(void)state;
-			phRenderEntity& renderEntity = *reinterpret_cast<phRenderEntity*>(singletonData);
+			RenderEntity& renderEntity = *reinterpret_cast<RenderEntity*>(singletonData);
 
 			ImGui::InputFloat3("Scale", renderEntity.scale.data());
 			ImGui::InputFloat3("Translation", renderEntity.translation.data());
@@ -121,7 +181,7 @@ public:
 			(void)editorState;
 			(void)state;
 			(void)entity;
-			phRenderEntity& renderEntity = *reinterpret_cast<phRenderEntity*>(componentData);
+			RenderEntity& renderEntity = *reinterpret_cast<RenderEntity*>(componentData);
 
 			ImGui::InputFloat3("Scale", renderEntity.scale.data());
 			ImGui::InputFloat3("Translation", renderEntity.translation.data());
@@ -161,11 +221,13 @@ public:
 			"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES);
 
 		// Load cube mesh
+		StringID cubeMeshId = resStrings.getStringID("virtual/cube");
 		ph::Mesh cubeMesh = createCubeMesh(getDefaultAllocator());
-		sfz::DynArray<ph::ImageAndPath> noImages;
-		uint32_t cubeMeshIdx= state.resourceManager.registerMesh("virtual/cube", cubeMesh, noImages);
+		renderer.uploadMeshBlocking(cubeMeshId, cubeMesh);
 
 		{
+			StringID sponzaId = resStrings.getStringID("res/sponza.gltf");
+
 			// Load sponza level
 			Mesh mesh;
 			DynArray<ImageAndPath> textures;
@@ -174,20 +236,29 @@ public:
 				mesh,
 				textures,
 				sfz::getDefaultAllocator(),
-				&state.resourceManager);
+				nullptr,
+				nullptr);
 			if (!success) {
 				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
 			}
 
-			// Upload sponza level to Renderer via resource manager
-			uint32_t sponzaIdx = state.resourceManager.registerMesh("res/sponza.gltf", mesh, textures);
+			// Upload sponza textures to Renderer
+			for (const ImageAndPath& item : textures) {
+				bool success = renderer.uploadTextureBlocking(item.globalPathId, item.image, true);
+				sfz_assert_debug(success);
+			}
+
+			// Upload sponza mesh to Renderer
+			bool sponzaUploadSuccess =
+				renderer.uploadMeshBlocking(sponzaId, mesh);
+			sfz_assert_debug(sponzaUploadSuccess);
 
 			// Create RenderEntity
-			StaticScene staticScene;
+			StaticScene& staticScene = mStaticScene;
 			staticScene.renderEntities.create(1);
 			{
-				phRenderEntity entity;
-				entity.meshIndex = sponzaIdx;
+				RenderEntity entity;
+				entity.meshId = sponzaId;
 				staticScene.renderEntities.add(entity);
 			}
 
@@ -200,21 +271,15 @@ public:
 			tmpLight.strength = 150.0f;
 			tmpLight.bitmaskFlags = SPHERE_LIGHT_STATIC_SHADOWS_BIT | SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT;
 			staticScene.sphereLights.add(tmpLight);
-
-			// Upload static scene to renderer
-			renderer.setStaticScene(staticScene);
 		}
 
 		// Initialize camera
-		state.cam.pos = vec3(3.0f, 3.0f, 3.0f);
-		state.cam.dir = sfz::normalize(vec3(-1.0f, -0.25f, -1.0f));
-		state.cam.up =  vec3(0.0f, 1.0f, 0.0f);
-		state.cam.near = 0.05f;
-		state.cam.far = 200.0f;
-		state.cam.vertFovDeg = 60.0f;
-
-		// Allocate memory for render entities
-		state.renderEntities.create(MAX_NUM_ENTITIES, getDefaultAllocator());
+		mCam.pos = vec3(3.0f, 3.0f, 3.0f);
+		mCam.dir = sfz::normalize(vec3(-1.0f, -0.25f, -1.0f));
+		mCam.up =  vec3(0.0f, 1.0f, 0.0f);
+		mCam.near = 0.05f;
+		mCam.far = 200.0f;
+		mCam.vertFovDeg = 60.0f;
 
 		// Common game state stuff
 		GameStateHeader* ecs = mGameStateContainer.getHeader();
@@ -242,8 +307,8 @@ public:
 		// Add a box entity
 		{
 			Entity entity = ecs->createEntity();
-			phRenderEntity renderEntity;
-			renderEntity.meshIndex = cubeMeshIdx;
+			RenderEntity renderEntity;
+			renderEntity.meshId = cubeMeshId;
 			ecs->addComponent(entity, RENDER_ENTITY_TYPE, renderEntity);
 		}
 
@@ -265,12 +330,10 @@ public:
 	}
 
 	UpdateOp processInput(
-		UpdateableState& state,
 		const UserInput& input,
 		const UpdateInfo& updateInfo,
 		Renderer& renderer) override final
 	{
-		(void) state;
 		(void) updateInfo;
 		(void) renderer;
 
@@ -290,14 +353,14 @@ public:
 		return UpdateOp::NO_OP();
 	}
 
-	UpdateOp updateTick(UpdateableState& state, const UpdateInfo& updateInfo) override final
+	UpdateOp updateTick(const UpdateInfo& updateInfo) override final
 	{
 		float delta = updateInfo.tickTimeSeconds;
 
 		float currentSpeed = 10.0f;
 		float turningSpeed = 0.8f * PI;
 
-		auto& cam = state.cam;
+		CameraData& cam = mCam;
 
 		// Triggers
 		if (mCtrl.leftTrigger > mCtrl.triggerDeadzone) {
@@ -312,7 +375,7 @@ public:
 			vec3 right = normalize(cross(cam.dir, cam.up));
 			mat3 xTurn = mat3::rotation3(vec3(0.0f, -1.0f, 0.0f), mCtrl.rightStick[0] * turningSpeed * delta);
 			mat3 yTurn = mat3::rotation3(right, mCtrl.rightStick[1] * turningSpeed * delta);
-			setDir(state, yTurn * xTurn * cam.dir, yTurn * xTurn * cam.up);
+			setDir(cam, yTurn * xTurn * cam.dir, yTurn * xTurn * cam.up);
 		}
 		if (length(mCtrl.leftStick) > mCtrl.stickDeadzone) {
 			vec3 right = normalize(cross(cam.dir, cam.up));
@@ -362,44 +425,119 @@ public:
 			//return UpdateOp::QUIT();
 		}
 
-		setDir(state, cam.dir, vec3(0.0f, 1.0f, 0.0f));
+		setDir(cam, cam.dir, vec3(0.0f, 1.0f, 0.0f));
 
 		return UpdateOp::NO_OP();
 	}
 
-	RenderSettings preRenderHook(
-		UpdateableState& state, const UpdateInfo& updateInfo, Renderer& renderer) override final
+	void render(const UpdateInfo& updateInfo, Renderer& renderer) override final
 	{
 		(void)updateInfo;
-		(void)renderer;
+
+		StringCollection& resStrings = ph::getResourceStrings();
 
 		// Grab common ECS stuff
 		GameStateHeader* gameState = mGameStateContainer.getHeader();
 		ComponentMask* masks = gameState->componentMasks();
 
-		// Copy render entities from ECS to list to draw
-		state.renderEntities.clear();
-		phRenderEntity* renderEntities = gameState->components<phRenderEntity>(RENDER_ENTITY_TYPE);
-		ComponentMask renderEntityMask =
-			ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
-		for (uint32_t entity = 0; entity < gameState->maxNumEntities; entity++) {
-			if (!masks[entity].fulfills(renderEntityMask)) continue;
-			state.renderEntities.add(renderEntities[entity]);
-		}
+		// Calculate view and projection matrices
+		vec2_s32 windowRes = renderer.windowResolution();
+		float aspect = float(windowRes.x) / float(windowRes.y);
+		mat4 viewMatrix = sfz::viewMatrixGL(
+			mCam.pos, mCam.dir, mCam.up);
+		mat4 projMatrix = sfz::perspectiveProjectionVkD3d(
+			mCam.vertFovDeg, aspect, mCam.near, mCam.far);
 
-		// Copy sphere lights from ECS to list to draw
-		state.dynamicSphereLights.clear();
+		// Create list of point lights
+		ph::ForwardShaderPointLightsBuffer shaderPointLights;
+		for (const phSphereLight& sphereLight : mStaticScene.sphereLights) {
+			
+			ph::ShaderPointLight& pointLight =
+				shaderPointLights.pointLights[shaderPointLights.numPointLights];
+			shaderPointLights.numPointLights += 1;
+
+			pointLight.posVS = transformPoint(viewMatrix, vec3(sphereLight.pos));
+			pointLight.range = sphereLight.range;
+			pointLight.strength = vec3(sphereLight.color) * (1.0f / 255.0f) * sphereLight.strength;
+		}
 		phSphereLight* sphereLights = gameState->components<phSphereLight>(SPHERE_LIGHT_TYPE);
 		ComponentMask sphereLightyMask =
 			ComponentMask::activeMask() | ComponentMask::fromType(SPHERE_LIGHT_TYPE);
 		for (uint32_t entity = 0; entity < gameState->maxNumEntities; entity++) {
 			if (!masks[entity].fulfills(sphereLightyMask)) continue;
-			state.dynamicSphereLights.add(sphereLights[entity]);
+
+			const phSphereLight& sphereLight = sphereLights[entity];
+
+			ph::ShaderPointLight& pointLight =
+				shaderPointLights.pointLights[shaderPointLights.numPointLights];
+			shaderPointLights.numPointLights += 1;
+
+			pointLight.posVS = transformPoint(viewMatrix, vec3(sphereLight.pos));
+			pointLight.range = sphereLight.range;
+			pointLight.strength = vec3(sphereLight.color) * (1.0f / 255.0f) * sphereLight.strength;
 		}
 
-		RenderSettings settings;
-		settings.clearColor = vec4(0.0f);
-		return settings;
+		// Forward pass
+		StringID forwardStageName = resStrings.getStringID("Forward Pass");
+		renderer.stageBeginInput(forwardStageName);
+
+		// Set projection matrix push constant
+		renderer.stageSetPushConstant(0, projMatrix);
+
+		// Set light sources
+		renderer.stageSetConstantBuffer(5, shaderPointLights);
+
+		MeshRegisters forwardRegisters;
+		forwardRegisters.materialIdxPushConstant = 2;
+		forwardRegisters.materialsArray = 4;
+		forwardRegisters.albedo = 0;
+		forwardRegisters.metallicRoughness = 1;
+		forwardRegisters.emissive = 2;
+
+		// Static scene
+		for (const RenderEntity& entity : mStaticScene.renderEntities) {
+
+			mat4 modelMatrix = mat4(entity.transform());
+
+			// Calculate modelView and normal matrix
+			struct {
+				mat4 modelViewMatrix;
+				mat4 normalMatrix;
+			} dynMatrices;
+
+			dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
+			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+			// Render mesh
+			renderer.stageSetPushConstant(1, dynMatrices);
+			renderer.stageDrawMesh(entity.meshId, forwardRegisters);
+		}
+
+		// Dynamic objects
+		RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
+		ComponentMask renderEntityMask =
+			ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
+		for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
+			if (!masks[entityId].fulfills(renderEntityMask)) continue;
+			const RenderEntity& entity = renderEntities[entityId];
+
+			mat4 modelMatrix = mat4(entity.transform());
+
+			// Calculate modelView and normal matrix
+			struct {
+				mat4 modelViewMatrix;
+				mat4 normalMatrix;
+			} dynMatrices;
+
+			dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
+			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+			// Render mesh
+			renderer.stageSetPushConstant(1, dynMatrices);
+			renderer.stageDrawMesh(entity.meshId, forwardRegisters);
+		}
+
+		renderer.stageEndInput();
 	}
 
 	void renderCustomImgui() override final
@@ -436,19 +574,19 @@ public:
 
 	}
 
-	void onQuit(UpdateableState& state) override final
+	void onQuit() override final
 	{
-		(void) state;
+
 	}
 
 private:
 	// Private methods
 	// --------------------------------------------------------------------------------------------
 
-	void setDir(UpdateableState& state, vec3 direction, vec3 up) noexcept
+	void setDir(CameraData& cam, vec3 direction, vec3 up) noexcept
 	{
-		state.cam.dir = normalize(direction);
-		state.cam.up = normalize(up - dot(up, state.cam.dir) * state.cam.dir);
+		cam.dir = normalize(direction);
+		cam.up = normalize(up - dot(up, cam.dir) * cam.dir);
 		//sfz_assert_debug(approxEqual(dot(mCam.dir, mCam.up), 0.0f));
 	}
 

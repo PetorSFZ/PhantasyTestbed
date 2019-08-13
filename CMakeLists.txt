@@ -23,6 +23,12 @@ phPrintCompilerFlags()
 #set(PH_SDL2_ROOT ${ROOT_DIR}/Dependency-SDL2)
 phAddSDL2()
 
+# ZeroG
+# ${ZEROG_FOUND}, ${ZEROG_INCLUDE_DIRS}, ${ZEROG_LIBRARIES} and ${ZEROG_RUNTIME_FILES}
+# ${ZEROG_CPP_FOUND}, ${ZEROG_CPP_INCLUDE_DIRS} and ${ZEROG_CPP_LIBRARIES}
+#set(PH_ZEROG_ROOT ${ROOT_DIR}/ZeroG)
+phAddZeroG()
+
 # sfzCore
 # ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
 # ${SFZ_CORE_OPENGL_FOUND}, ${SFZ_CORE_OPENGL_INCLUDE_DIRS}, ${SFZ_CORE_OPENGL_LIBRARIES}, ${SFZ_CORE_OPENGL_RUNTIME_FILES}
@@ -35,12 +41,9 @@ phAddSfzCore()
 # tinygltf: ${TINYGLTF_FOUND}, ${TINYGLTF_INCLUDE_DIRS}
 phAddBundledExternals()
 
-# Interface: ${PH_INTERFACE_FOUND}, ${PH_INTERFACE_INCLUDE_DIRS}, ${PH_INTERFACE_LIBRARIES}
-# Engine: ${PHANTASY_ENGINE_FOUND}, ${PHANTASY_ENGINE_INCLUDE_DIRS}, ${PHANTASY_ENGINE_LIBRARIES}
+# PhantasyEngine
+# ${PHANTASY_ENGINE_FOUND}, ${PHANTASY_ENGINE_INCLUDE_DIRS}, ${PHANTASY_ENGINE_LIBRARIES}
 phAddPhantasyEngineTargets()
-
-# ${PH_RENDERER_COMPATIBLE_GL_FOUND}, ${PH_RENDERER_COMPATIBLE_GL_LIBRARIES}, ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_DIR}
-phAddRendererCompatibleGL()
 
 # Executable
 # ------------------------------------------------------------------------------------------------
@@ -67,18 +70,15 @@ phLinkSDL2(PhantasyTestbed)
 phLinkSfzCore(PhantasyTestbed)
 phLinkBundledExternals(PhantasyTestbed)
 phLinkPhantasyEngine(PhantasyTestbed)
-phLinkRendererCompatibleGL(PhantasyTestbed)
 phIosLinkStandardFrameworks(PhantasyTestbed)
 
 # Files
 # ------------------------------------------------------------------------------------------------
 
-phMsvcCopyRuntimeDLLs(${SDL2_RUNTIME_FILES} ${SFZ_CORE_OPENGL_RUNTIME_FILES})
+phMsvcCopyRuntimeDLLs(${SDL2_RUNTIME_FILES} ${ZEROG_RUNTIME_FILES})
 
-phCreateSymlinkScript(${RESOURCES_DIR}
-	${PHANTASY_ENGINE_RUNTIME_DIR} ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_DIR})
+phCreateSymlinkScript(${RESOURCES_DIR} ${PHANTASY_ENGINE_RUNTIME_DIR})
 
 phExecuteSymlinkScript()
 
-phIosCopyRuntimeDirectories(PhantasyTestbed
-	${RESOURCES_DIR} ${PHANTASY_ENGINE_RUNTIME_DIR} ${PH_RENDERER_COMPATIBLE_GL_RUNTIME_DIR})
+phIosCopyRuntimeDirectories(PhantasyTestbed ${RESOURCES_DIR} ${PHANTASY_ENGINE_RUNTIME_DIR})
