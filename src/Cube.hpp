@@ -172,18 +172,22 @@ inline ph::Mesh createCubeMesh(Allocator* allocator) noexcept
 		mesh.vertices[i].texcoord = CUBE_TEXCOORDS[i];
 	}
 
+	// Indices
+	mesh.indices.create(CUBE_NUM_INDICES, allocator);
+	mesh.indices.add(CUBE_INDICES, CUBE_NUM_INDICES);
+
 	// Components
 	ph::MeshComponent comp;
 	comp.materialIdx = 0;
-	comp.indices.create(CUBE_NUM_INDICES, allocator);
-	comp.indices.add(CUBE_INDICES, CUBE_NUM_INDICES);
+	comp.firstIndex = 0;
+	comp.numIndices = CUBE_NUM_INDICES;
 	mesh.components.create(1, allocator);
 	mesh.components.add(std::move(comp));
 
 	// Material
-	ph::MaterialUnbound material;
+	ph::Material material;
 	material.albedo = sfz::vec4_u8(255, 0, 0, 255);
-	material.emissive = sfz::vec3_u8(255, 0, 0);
+	material.emissive = sfz::vec3(1.0f, 0.0f, 0.0f);
 	material.roughness = 255;
 	material.metallic = 0;
 	mesh.materials.create(1, allocator);
