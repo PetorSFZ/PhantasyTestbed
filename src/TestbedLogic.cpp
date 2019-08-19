@@ -231,15 +231,17 @@ public:
 			// Load sponza level
 			Mesh mesh;
 			DynArray<ImageAndPath> textures;
-			bool success = loadAssetsFromGltf(
-				"res/sponza.gltf",
-				mesh,
-				textures,
-				sfz::getDefaultAllocator(),
-				nullptr,
-				nullptr);
-			if (!success) {
-				SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+			{
+				bool success = loadAssetsFromGltf(
+					"res/sponza.gltf",
+					mesh,
+					textures,
+					sfz::getDefaultAllocator(),
+					nullptr,
+					nullptr);
+				if (!success) {
+					SFZ_ERROR("PhantasyTesbed", "%s", "Failed to load assets from gltf!");
+				}
 			}
 
 			// Upload sponza textures to Renderer
@@ -353,8 +355,9 @@ public:
 		return UpdateOp::NO_OP();
 	}
 
-	UpdateOp updateTick(const UpdateInfo& updateInfo) override final
+	UpdateOp updateTick(const UpdateInfo& updateInfo, Renderer& renderer) override final
 	{
+		(void)renderer;
 		float delta = updateInfo.tickTimeSeconds;
 
 		float currentSpeed = 10.0f;
