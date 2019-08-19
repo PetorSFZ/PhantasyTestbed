@@ -23,16 +23,6 @@ static ph::InitOptions createInitOptions()
 		return ph::createDefaultGameUpdateable(allocator, createTestbedLogic(allocator));
 	};
 
-#ifdef __EMSCRIPTEN__
-	options.rendererName = "Renderer-CompatibleGL";
-#else
-#ifdef PH_CUDA_RAYTRACER
-	options.rendererName = "Renderer-CudaRaytracer";
-#else
-	options.rendererName = "Renderer-CompatibleGL";
-#endif
-#endif
-
 	return options;
 }
 
