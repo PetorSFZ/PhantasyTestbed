@@ -10,6 +10,7 @@
 #include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/renderer/BuiltinShaderTypes.hpp>
+#include <ph/rendering/FullscreenTriangle.hpp>
 #include <ph/rendering/SphereLight.hpp>
 #include <ph/state/GameState.hpp>
 #include <ph/state/GameStateEditor.hpp>
@@ -132,6 +133,11 @@ public:
 		bool rendererLoadConfigSuccess =
 			renderer.loadConfiguration("res_ph/shaders/default_renderer_config.json");
 		sfz_assert_debug(rendererLoadConfigSuccess);
+
+		// Create fullscreen triangle
+		ph::Mesh fullscreenTriangle = ph::createFullscreenTriangle(getDefaultAllocator());
+		renderer.uploadMeshBlocking(
+			resStrings.getStringID("FullscreenTriangle"), fullscreenTriangle);
 
 		// Create game state
 		const uint32_t NUM_SINGLETONS = 1;
@@ -539,6 +545,19 @@ public:
 			renderer.stageSetPushConstant(1, dynMatrices);
 			renderer.stageDrawMesh(entity.meshId, forwardRegisters);
 		}
+
+		renderer.stageEndInput();
+
+		// Progress past stage barrier
+		renderer.stageBarrierProgressNext();
+
+		// Copy out pass
+		StringID copyOutStageName = resStrings.getStringID("Copy Out Pass");
+		renderer.stageBeginInput(copyOutStageName);
+
+		ph::MeshRegisters noRegisters;
+		StringID fullscreenTriangleId = resStrings.getStringID("FullscreenTriangle");
+		renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
 		renderer.stageEndInput();
 	}
