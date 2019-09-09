@@ -450,12 +450,13 @@ public:
 		ComponentMask* masks = gameState->componentMasks();
 
 		// Calculate view and projection matrices
-		vec2_s32 windowRes = renderer.windowResolution();
-		float aspect = float(windowRes.x) / float(windowRes.y);
-		mat4 viewMatrix = sfz::viewMatrixGL(
+		const vec2_s32 windowRes = renderer.windowResolution();
+		const float aspect = float(windowRes.x) / float(windowRes.y);
+		const mat4 viewMatrix = sfz::viewMatrixGL(
 			mCam.pos, mCam.dir, mCam.up);
-		mat4 projMatrix = sfz::perspectiveProjectionVkD3d(
+		const mat4 projMatrix = sfz::perspectiveProjectionVkD3d(
 			mCam.vertFovDeg, aspect, mCam.near, mCam.far);
+		const mat4 invProjMatrix = sfz::inverse(projMatrix);
 
 		// Create list of point lights
 		ph::ForwardShaderPointLightsBuffer shaderPointLights;
@@ -486,80 +487,120 @@ public:
 			pointLight.strength = vec3(sphereLight.color) * (1.0f / 255.0f) * sphereLight.strength;
 		}
 
-		// Forward pass
-		StringID forwardStageName = resStrings.getStringID("Forward Pass");
-		renderer.stageBeginInput(forwardStageName);
-
-		// Set projection matrix push constant
-		renderer.stageSetPushConstant(0, projMatrix);
-
-		// Set light sources
-		renderer.stageSetConstantBuffer(5, shaderPointLights);
-
-		MeshRegisters forwardRegisters;
-		forwardRegisters.materialIdxPushConstant = 2;
-		forwardRegisters.materialsArray = 4;
-		forwardRegisters.albedo = 0;
-		forwardRegisters.metallicRoughness = 1;
-		forwardRegisters.emissive = 2;
-
-		// Static scene
-		for (const RenderEntity& entity : mStaticScene.renderEntities) {
-
-			mat4 modelMatrix = mat4(entity.transform());
-
-			// Calculate modelView and normal matrix
-			struct {
-				mat4 modelViewMatrix;
-				mat4 normalMatrix;
-			} dynMatrices;
-
-			dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
-			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
-
-			// Render mesh
-			renderer.stageSetPushConstant(1, dynMatrices);
-			renderer.stageDrawMesh(entity.meshId, forwardRegisters);
-		}
-
-		// Dynamic objects
-		RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
-		ComponentMask renderEntityMask =
-			ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
-		for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
-			if (!masks[entityId].fulfills(renderEntityMask)) continue;
-			const RenderEntity& entity = renderEntities[entityId];
-
-			mat4 modelMatrix = mat4(entity.transform());
-
-			// Calculate modelView and normal matrix
-			struct {
-				mat4 modelViewMatrix;
-				mat4 normalMatrix;
-			} dynMatrices;
-
-			dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
-			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
-
-			// Render mesh
-			renderer.stageSetPushConstant(1, dynMatrices);
-			renderer.stageDrawMesh(entity.meshId, forwardRegisters);
-		}
-
-		renderer.stageEndInput();
-
-		// Progress past stage barrier
-		renderer.stageBarrierProgressNext();
-
-		// Copy out pass
-		StringID copyOutStageName = resStrings.getStringID("Copy Out Pass");
-		renderer.stageBeginInput(copyOutStageName);
-
-		ph::MeshRegisters noRegisters;
 		StringID fullscreenTriangleId = resStrings.getStringID("FullscreenTriangle");
-		renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
-		renderer.stageEndInput();
+
+		// GBuffer pass
+		// --------------------------------------------------------------------------------------------
+
+		{
+			StringID gbufferStageName = resStrings.getStringID("GBuffer Pass");
+			renderer.stageBeginInput(gbufferStageName);
+
+			// Set projection matrix push constant
+			renderer.stageSetPushConstant(0, projMatrix);
+
+			ph::MeshRegisters registers;
+			registers.materialIdxPushConstant = 2;
+			registers.materialsArray = 3;
+			registers.albedo = 0;
+			registers.metallicRoughness = 1;
+			registers.emissive = 2;
+
+			// Static scene
+			for (const RenderEntity& entity : mStaticScene.renderEntities) {
+
+				mat4 modelMatrix = mat4(entity.transform());
+
+				// Calculate modelView and normal matrix
+				struct {
+					mat4 modelViewMatrix;
+					mat4 normalMatrix;
+				} dynMatrices;
+
+				dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
+				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+				// Render mesh
+				renderer.stageSetPushConstant(1, dynMatrices);
+				renderer.stageDrawMesh(entity.meshId, registers);
+			}
+
+			// Dynamic objects
+			RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
+			ComponentMask renderEntityMask =
+				ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
+			for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
+				if (!masks[entityId].fulfills(renderEntityMask)) continue;
+				const RenderEntity& entity = renderEntities[entityId];
+
+				mat4 modelMatrix = mat4(entity.transform());
+
+				// Calculate modelView and normal matrix
+				struct {
+					mat4 modelViewMatrix;
+					mat4 normalMatrix;
+				} dynMatrices;
+
+				dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
+				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+				// Render mesh
+				renderer.stageSetPushConstant(1, dynMatrices);
+				renderer.stageDrawMesh(entity.meshId, registers);
+			}
+
+			renderer.stageEndInput();
+		}
+
+
+		// Shading pass
+		// --------------------------------------------------------------------------------------------
+
+		{
+			bool success = renderer.stageBarrierProgressNext();
+			sfz_assert_debug(success);
+
+			// Begin input
+			StringID stageName = resStrings.getStringID("Shading Pass");
+			renderer.stageBeginInput(stageName);
+
+			// Set push constants
+			renderer.stageSetPushConstant(0, invProjMatrix);
+
+			// Set constant buffers
+			renderer.stageSetConstantBuffer(1, shaderPointLights);
+
+			// Fullscreen pass
+			ph::MeshRegisters noRegisters;
+			renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
+
+			renderer.stageEndInput();
+		}
+
+
+		// Copy Out Pass
+		// --------------------------------------------------------------------------------------------
+
+		{
+			bool success = renderer.stageBarrierProgressNext();
+			sfz_assert_debug(success);
+
+			// Begin input
+			StringID copyOutPassName = resStrings.getStringID("Copy Out Pass");
+			renderer.stageBeginInput(copyOutPassName);
+
+			// Set window resolution push constant
+			vec2_s32 windowRes = renderer.windowResolution();
+			vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
+			renderer.stageSetPushConstant(0, pushConstantRes);
+
+			// Fullscreen pass
+			ph::MeshRegisters noRegisters;
+			renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
+
+			renderer.stageEndInput();
+		}
 	}
 
 	void renderCustomImgui() override final
