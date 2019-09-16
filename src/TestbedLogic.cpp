@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <ZeroG-cpp.hpp>
+
 #include <sfz/Logging.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
@@ -10,6 +12,7 @@
 #include <ph/Context.hpp>
 #include <ph/config/GlobalConfig.hpp>
 #include <ph/renderer/BuiltinShaderTypes.hpp>
+#include <ph/renderer/CascadedShadowMaps.hpp>
 #include <ph/rendering/FullscreenTriangle.hpp>
 #include <ph/rendering/SphereLight.hpp>
 #include <ph/state/GameState.hpp>
@@ -452,10 +455,18 @@ public:
 		// Calculate view and projection matrices
 		const vec2_s32 windowRes = renderer.windowResolution();
 		const float aspect = float(windowRes.x) / float(windowRes.y);
-		const mat4 viewMatrix = sfz::viewMatrixGL(
-			mCam.pos, mCam.dir, mCam.up);
-		const mat4 projMatrix = sfz::perspectiveProjectionVkD3d(
-			mCam.vertFovDeg, aspect, mCam.near, mCam.far);
+
+		mat4 viewMatrix;
+		zg::createViewMatrix(
+			viewMatrix.data(),
+			mCam.pos.data(),
+			mCam.dir.data(),
+			mCam.up.data());
+
+		mat4 projMatrix;
+		zg::createPerspectiveProjectionReverseInfinite(
+			projMatrix.data(), mCam.vertFovDeg, aspect, mCam.near);
+
 		const mat4 invProjMatrix = sfz::inverse(projMatrix);
 
 		// Create list of point lights
@@ -489,8 +500,10 @@ public:
 
 		StringID fullscreenTriangleId = resStrings.getStringID("FullscreenTriangle");
 
+		const ph::MeshRegisters noRegisters;
 
-		// GBuffer pass
+
+		// GBuffer and directional shadow map pass
 		// --------------------------------------------------------------------------------------------
 
 		{
@@ -553,16 +566,124 @@ public:
 			renderer.stageEndInput();
 		}
 
+		// Calculate cascaded shadow map info
+		const vec3 dirLightDirWS = sfz::normalize(vec3(0.0f, -1.0f, 0.1f));
+		ph::CascadedShadowMapInfo cascadedInfo;
+		{
+			constexpr uint32_t NUM_LEVELS = 1;
+			constexpr float LEVEL_DISTS[NUM_LEVELS] = {
+				64.0f
+			};
+			cascadedInfo = ph::calculateCascadedShadowMapInfo(
+				mCam.pos,
+				mCam.dir,
+				mCam.up,
+				mCam.vertFovDeg,
+				aspect,
+				mCam.near,
+				dirLightDirWS,
+				80.0f,
+				NUM_LEVELS,
+				LEVEL_DISTS);
+		}
 
-		// Shading pass
+		{
+			StringID stageName = resStrings.getStringID("Directional Shadow Map Pass");
+			renderer.stageBeginInput(stageName);
+
+			// Set push constants
+			renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[0]);
+
+			// Draw geometry
+			// Static scene
+			for (const RenderEntity& entity : mStaticScene.renderEntities) {
+
+				mat4 modelMatrix = mat4(entity.transform());
+
+				// Calculate modelView and normal matrix
+				struct {
+					mat4 modelViewMatrix;
+					mat4 normalMatrix;
+				} dynMatrices;
+
+				dynMatrices.modelViewMatrix = cascadedInfo.viewMatrices[0] * modelMatrix;
+				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+				// Render mesh
+				renderer.stageSetPushConstant(1, dynMatrices);
+				renderer.stageDrawMesh(entity.meshId, noRegisters);
+			}
+
+			// Dynamic objects
+			RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
+			ComponentMask renderEntityMask =
+				ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
+			for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
+				if (!masks[entityId].fulfills(renderEntityMask)) continue;
+				const RenderEntity& entity = renderEntities[entityId];
+
+				mat4 modelMatrix = mat4(entity.transform());
+
+				// Calculate modelView and normal matrix
+				struct {
+					mat4 modelViewMatrix;
+					mat4 normalMatrix;
+				} dynMatrices;
+
+				dynMatrices.modelViewMatrix = cascadedInfo.viewMatrices[0] * modelMatrix;
+				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+				// Render mesh
+				renderer.stageSetPushConstant(1, dynMatrices);
+				renderer.stageDrawMesh(entity.meshId, noRegisters);
+			}
+
+			renderer.stageEndInput();
+		}
+
+
+		// Directional and Point Light Shading
 		// --------------------------------------------------------------------------------------------
 
 		{
 			bool success = renderer.stageBarrierProgressNext();
 			sfz_assert_debug(success);
+		}
+
+		// Directional shading
+		{
 
 			// Begin input
-			StringID stageName = resStrings.getStringID("Shading Pass");
+			StringID stageName = resStrings.getStringID("Directional Shading Pass");
+			renderer.stageBeginInput(stageName);
+
+			// Set push constants
+			struct {
+				mat4 invProjMatrix;
+				mat4 dirLightMatrix;
+			} pushConstants1;
+			pushConstants1.invProjMatrix = invProjMatrix;
+			pushConstants1.dirLightMatrix = cascadedInfo.lightMatrices[0];
+			renderer.stageSetPushConstant(0, pushConstants1);
+
+			ph::DirectionalLight dirLight;
+			dirLight.lightDirVS =
+				sfz::transformDir(viewMatrix, dirLightDirWS);
+			dirLight.strength = vec3(10.0f);
+			renderer.stageSetPushConstant(1, dirLight);
+
+			// Fullscreen pass
+			ph::MeshRegisters noRegisters;
+			renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
+
+			renderer.stageEndInput();
+		}
+
+		// Point lights
+		{
+
+			// Begin input
+			StringID stageName = resStrings.getStringID("Point Light Shading Pass");
 			renderer.stageBeginInput(stageName);
 
 			// Set push constants
