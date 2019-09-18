@@ -503,6 +503,55 @@ public:
 		const ph::MeshRegisters noRegisters;
 
 
+		// Lambda for rendering all geometry
+		// --------------------------------------------------------------------------------------------
+
+		auto renderGeometry = [&](const ph::MeshRegisters& registers, mat4 viewMatrix) {
+			// Static scene
+			for (const RenderEntity& entity : mStaticScene.renderEntities) {
+
+				mat4 modelMatrix = mat4(entity.transform());
+
+				// Calculate modelView and normal matrix
+				struct {
+					mat4 modelViewMatrix;
+					mat4 normalMatrix;
+				} dynMatrices;
+
+				dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
+				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+				// Render mesh
+				renderer.stageSetPushConstant(1, dynMatrices);
+				renderer.stageDrawMesh(entity.meshId, registers);
+			}
+
+			// Dynamic objects
+			RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
+			ComponentMask renderEntityMask =
+				ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
+			for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
+				if (!masks[entityId].fulfills(renderEntityMask)) continue;
+				const RenderEntity& entity = renderEntities[entityId];
+
+				mat4 modelMatrix = mat4(entity.transform());
+
+				// Calculate modelView and normal matrix
+				struct {
+					mat4 modelViewMatrix;
+					mat4 normalMatrix;
+				} dynMatrices;
+
+				dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
+				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+
+				// Render mesh
+				renderer.stageSetPushConstant(1, dynMatrices);
+				renderer.stageDrawMesh(entity.meshId, registers);
+			}
+		};
+
+
 		// GBuffer and directional shadow map pass
 		// --------------------------------------------------------------------------------------------
 
@@ -520,48 +569,8 @@ public:
 			registers.metallicRoughness = 1;
 			registers.emissive = 2;
 
-			// Static scene
-			for (const RenderEntity& entity : mStaticScene.renderEntities) {
-
-				mat4 modelMatrix = mat4(entity.transform());
-
-				// Calculate modelView and normal matrix
-				struct {
-					mat4 modelViewMatrix;
-					mat4 normalMatrix;
-				} dynMatrices;
-
-				dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
-				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
-
-				// Render mesh
-				renderer.stageSetPushConstant(1, dynMatrices);
-				renderer.stageDrawMesh(entity.meshId, registers);
-			}
-
-			// Dynamic objects
-			RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
-			ComponentMask renderEntityMask =
-				ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
-			for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
-				if (!masks[entityId].fulfills(renderEntityMask)) continue;
-				const RenderEntity& entity = renderEntities[entityId];
-
-				mat4 modelMatrix = mat4(entity.transform());
-
-				// Calculate modelView and normal matrix
-				struct {
-					mat4 modelViewMatrix;
-					mat4 normalMatrix;
-				} dynMatrices;
-
-				dynMatrices.modelViewMatrix = viewMatrix * modelMatrix;
-				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
-
-				// Render mesh
-				renderer.stageSetPushConstant(1, dynMatrices);
-				renderer.stageDrawMesh(entity.meshId, registers);
-			}
+			// Draw geometry
+			renderGeometry(registers, viewMatrix);
 
 			renderer.stageEndInput();
 		}
@@ -570,9 +579,11 @@ public:
 		const vec3 dirLightDirWS = sfz::normalize(vec3(0.0f, -1.0f, 0.1f));
 		ph::CascadedShadowMapInfo cascadedInfo;
 		{
-			constexpr uint32_t NUM_LEVELS = 1;
+			constexpr uint32_t NUM_LEVELS = 3;
 			constexpr float LEVEL_DISTS[NUM_LEVELS] = {
-				64.0f
+				24.0f,
+				64.0f,
+				128.0f
 			};
 			cascadedInfo = ph::calculateCascadedShadowMapInfo(
 				mCam.pos,
@@ -588,55 +599,40 @@ public:
 		}
 
 		{
-			StringID stageName = resStrings.getStringID("Directional Shadow Map Pass");
+			StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 1");
 			renderer.stageBeginInput(stageName);
 
 			// Set push constants
 			renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[0]);
 
 			// Draw geometry
-			// Static scene
-			for (const RenderEntity& entity : mStaticScene.renderEntities) {
+			renderGeometry(noRegisters, cascadedInfo.viewMatrices[0]);
 
-				mat4 modelMatrix = mat4(entity.transform());
+			renderer.stageEndInput();
+		}
 
-				// Calculate modelView and normal matrix
-				struct {
-					mat4 modelViewMatrix;
-					mat4 normalMatrix;
-				} dynMatrices;
+		{
+			StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 2");
+			renderer.stageBeginInput(stageName);
 
-				dynMatrices.modelViewMatrix = cascadedInfo.viewMatrices[0] * modelMatrix;
-				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
+			// Set push constants
+			renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[1]);
 
-				// Render mesh
-				renderer.stageSetPushConstant(1, dynMatrices);
-				renderer.stageDrawMesh(entity.meshId, noRegisters);
-			}
+			// Draw geometry
+			renderGeometry(noRegisters, cascadedInfo.viewMatrices[1]);
 
-			// Dynamic objects
-			RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
-			ComponentMask renderEntityMask =
-				ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
-			for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
-				if (!masks[entityId].fulfills(renderEntityMask)) continue;
-				const RenderEntity& entity = renderEntities[entityId];
+			renderer.stageEndInput();
+		}
 
-				mat4 modelMatrix = mat4(entity.transform());
+		{
+			StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 3");
+			renderer.stageBeginInput(stageName);
 
-				// Calculate modelView and normal matrix
-				struct {
-					mat4 modelViewMatrix;
-					mat4 normalMatrix;
-				} dynMatrices;
+			// Set push constants
+			renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[2]);
 
-				dynMatrices.modelViewMatrix = cascadedInfo.viewMatrices[0] * modelMatrix;
-				dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
-
-				// Render mesh
-				renderer.stageSetPushConstant(1, dynMatrices);
-				renderer.stageDrawMesh(entity.meshId, noRegisters);
-			}
+			// Draw geometry
+			renderGeometry(noRegisters, cascadedInfo.viewMatrices[2]);
 
 			renderer.stageEndInput();
 		}
@@ -657,20 +653,28 @@ public:
 			StringID stageName = resStrings.getStringID("Directional Shading Pass");
 			renderer.stageBeginInput(stageName);
 
-			// Set push constants
-			struct {
-				mat4 invProjMatrix;
-				mat4 dirLightMatrix;
-			} pushConstants1;
-			pushConstants1.invProjMatrix = invProjMatrix;
-			pushConstants1.dirLightMatrix = cascadedInfo.lightMatrices[0];
-			renderer.stageSetPushConstant(0, pushConstants1);
+			// Set constant buffers
+			renderer.stageSetPushConstant(0, invProjMatrix);
 
-			ph::DirectionalLight dirLight;
-			dirLight.lightDirVS =
-				sfz::transformDir(viewMatrix, dirLightDirWS);
-			dirLight.strength = vec3(10.0f);
-			renderer.stageSetPushConstant(1, dirLight);
+			struct {
+				ph::DirectionalLight dirLight;
+				mat4 lightMatrix1;
+				mat4 lightMatrix2;
+				mat4 lightMatrix3;
+				float levelDist1;
+				float levelDist2;
+				float levelDist3;
+				float ___PADDING___;
+			} lightInfo;
+			lightInfo.dirLight.lightDirVS = sfz::transformDir(viewMatrix, dirLightDirWS);
+			lightInfo.dirLight.strength = vec3(10.0f);
+			lightInfo.lightMatrix1 = cascadedInfo.lightMatrices[0];
+			lightInfo.lightMatrix2 = cascadedInfo.lightMatrices[1];
+			lightInfo.lightMatrix3 = cascadedInfo.lightMatrices[2];
+			lightInfo.levelDist1 = cascadedInfo.levelDists[0];
+			lightInfo.levelDist2 = cascadedInfo.levelDists[1];
+			lightInfo.levelDist3 = cascadedInfo.levelDists[2];
+			renderer.stageSetConstantBuffer(1, lightInfo);
 
 			// Fullscreen pass
 			ph::MeshRegisters noRegisters;
