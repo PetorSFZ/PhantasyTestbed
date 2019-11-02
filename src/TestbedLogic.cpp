@@ -255,8 +255,11 @@ public:
 
 			// Upload sponza textures to Renderer
 			for (const ImageAndPath& item : textures) {
-				bool success = renderer.uploadTextureBlocking(item.globalPathId, item.image, true);
-				sfz_assert_debug(success);
+				if (!renderer.textureLoaded(item.globalPathId)) {
+					bool success =
+						renderer.uploadTextureBlocking(item.globalPathId, item.image, true);
+					sfz_assert_debug(success);
+				}
 			}
 
 			// Upload sponza mesh to Renderer
@@ -592,6 +595,7 @@ public:
 				mCam.vertFovDeg,
 				aspect,
 				mCam.near,
+				viewMatrix,
 				dirLightDirWS,
 				80.0f,
 				NUM_LEVELS,
