@@ -8,9 +8,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 # ------------------------------------------------------------------------------------------------
 
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
-set(PHANTASY_ENGINE_DIR ${ROOT_DIR}/PhantasyEngine)
+set(SFZ_TECH_DIR ${ROOT_DIR}/sfz_tech)
 
-include(${PHANTASY_ENGINE_DIR}/PhantasyEngine.cmake)
+include(${SFZ_TECH_DIR}/PhantasyEngine.cmake)
 
 # Phantasy Engine setup
 # ------------------------------------------------------------------------------------------------
@@ -23,18 +23,18 @@ phPrintCompilerFlags()
 #set(PH_SDL2_ROOT ${ROOT_DIR}/Dependency-SDL2)
 phAddSDL2()
 
-# ZeroG
-# ${ZEROG_FOUND}, ${ZEROG_INCLUDE_DIRS}, ${ZEROG_LIBRARIES} and ${ZEROG_RUNTIME_FILES}
-# ${ZEROG_CPP_FOUND}, ${ZEROG_CPP_INCLUDE_DIRS} and ${ZEROG_CPP_LIBRARIES}
-#set(PH_ZEROG_ROOT ${ROOT_DIR}/ZeroG)
-phAddZeroG()
-
 # sfzCore
 # ${SFZ_CORE_FOUND}, ${SFZ_CORE_INCLUDE_DIRS}, ${SFZ_CORE_LIBRARIES}
 # ${SFZ_CORE_OPENGL_FOUND}, ${SFZ_CORE_OPENGL_INCLUDE_DIRS}, ${SFZ_CORE_OPENGL_LIBRARIES}, ${SFZ_CORE_OPENGL_RUNTIME_FILES}
 #set(PH_SFZ_CORE_ROOT ${ROOT_DIR}/sfzCore)
 set(SFZ_CORE_OPENGL true)
 phAddSfzCore()
+
+# ZeroG
+# ${ZEROG_FOUND}, ${ZEROG_INCLUDE_DIRS}, ${ZEROG_LIBRARIES} and ${ZEROG_RUNTIME_FILES}
+# ${ZEROG_CPP_FOUND}, ${ZEROG_CPP_INCLUDE_DIRS} and ${ZEROG_CPP_LIBRARIES}
+#set(PH_ZEROG_ROOT ${ROOT_DIR}/ZeroG)
+phAddZeroG()
 
 # stb: ${STB_FOUND}, ${STB_INCLUDE_DIRS}
 # dear-imgui: ${IMGUI_FOUND}, ${IMGUI_INCLUDE_DIRS}, ${IMGUI_LIBRARIES}

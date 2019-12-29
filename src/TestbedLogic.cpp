@@ -2,30 +2,29 @@
 
 #include <imgui.h>
 
-#include <ZeroG-cpp.hpp>
-
+#include <sfz/Context.hpp>
+#include <sfz/config/GlobalConfig.hpp>
 #include <sfz/Logging.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
 #include <sfz/math/ProjectionMatrices.hpp>
+#include <sfz/renderer/BuiltinShaderTypes.hpp>
+#include <sfz/renderer/CascadedShadowMaps.hpp>
+#include <sfz/rendering/FullscreenTriangle.hpp>
+#include <sfz/rendering/SphereLight.hpp>
+#include <sfz/state/GameState.hpp>
+#include <sfz/state/GameStateEditor.hpp>
+#include <sfz/sdl/ButtonState.hpp>
+#include <sfz/util/GltfLoader.hpp>
+#include <sfz/util/GltfWriter.hpp>
 
-#include <ph/Context.hpp>
-#include <ph/config/GlobalConfig.hpp>
-#include <ph/renderer/BuiltinShaderTypes.hpp>
-#include <ph/renderer/CascadedShadowMaps.hpp>
-#include <ph/rendering/FullscreenTriangle.hpp>
-#include <ph/rendering/SphereLight.hpp>
-#include <ph/state/GameState.hpp>
-#include <ph/state/GameStateEditor.hpp>
-#include <ph/sdl/ButtonState.hpp>
-#include <ph/util/GltfLoader.hpp>
-#include <ph/util/GltfWriter.hpp>
+#include <ZeroG-cpp.hpp>
 
 #include "Cube.hpp"
 
-using namespace ph;
 using namespace sfz;
-using namespace ph::sdl;
+using namespace sfz;
+using namespace sfz::sdl;
 
 // CameraData struct
 // ------------------------------------------------------------------------------------------------
@@ -70,8 +69,8 @@ struct RenderEntity final {
 // ------------------------------------------------------------------------------------------------
 
 struct StaticScene final {
-	DynArray<RenderEntity> renderEntities;
-	DynArray<phSphereLight> sphereLights;
+	sfz::Array<RenderEntity> renderEntities;
+	sfz::Array<phSphereLight> sphereLights;
 };
 
 // ECS component types
@@ -84,7 +83,7 @@ constexpr uint32_t SPHERE_LIGHT_TYPE = 1u << 1u;
 // ------------------------------------------------------------------------------------------------
 
 struct EmulatedGameController {
-	ph::sdl::GameControllerState state;
+	sfz::sdl::GameControllerState state;
 
 	ButtonState leftStickUp = ButtonState::NOT_PRESSED;
 	ButtonState leftStickDown = ButtonState::NOT_PRESSED;
@@ -108,7 +107,7 @@ public:
 	// Constructors & destructors
 	// --------------------------------------------------------------------------------------------
 
-	TestbedLogic() noexcept = default;
+	TestbedLogic() = default;
 	TestbedLogic(const TestbedLogic&) = delete;
 	TestbedLogic& operator= (const TestbedLogic&) = delete;
 
@@ -119,11 +118,11 @@ public:
 	StaticScene mStaticScene;
 
 	EmulatedGameController mEmulatedController;
-	ph::GameControllerState mCtrl;
+	sfz::GameControllerState mCtrl;
 
 	Setting* mShowImguiDemo = nullptr;
-	ph::GameStateContainer mGameStateContainer;
-	ph::GameStateEditor mGameStateEditor;
+	sfz::GameStateContainer mGameStateContainer;
+	sfz::GameStateEditor mGameStateEditor;
 
 	// Overloaded methods from GameLogic
 	// --------------------------------------------------------------------------------------------
@@ -135,10 +134,10 @@ public:
 		// Load renderer config
 		bool rendererLoadConfigSuccess =
 			renderer.loadConfiguration("res_ph/shaders/default_renderer_config.json");
-		sfz_assert_debug(rendererLoadConfigSuccess);
+		sfz_assert(rendererLoadConfigSuccess);
 
 		// Create fullscreen triangle
-		ph::Mesh fullscreenTriangle = ph::createFullscreenTriangle(getDefaultAllocator());
+		sfz::Mesh fullscreenTriangle = sfz::createFullscreenTriangle(getDefaultAllocator());
 		renderer.uploadMeshBlocking(
 			resStrings.getStringID("FullscreenTriangle"), fullscreenTriangle);
 
@@ -153,14 +152,14 @@ public:
 			sizeof(RenderEntity),
 			sizeof(phSphereLight)
 		};
-		mGameStateContainer = ph::createGameState(
+		mGameStateContainer = sfz::createGameState(
 			NUM_SINGLETONS, SINGLETON_SIZES, MAX_NUM_ENTITIES, NUM_COMPONENT_TYPES, COMPONENT_SIZES);
 
 		// Init ECS viewer
 		SingletonInfo singletonInfos[NUM_SINGLETONS];
 
 		singletonInfos[0].singletonIndex = 0;
-		singletonInfos[0].singletonName.printf("phRenderEntity");
+		singletonInfos[0].singletonName.appendf("phRenderEntity");
 		singletonInfos[0].singletonEditor =
 			[](uint8_t * userPtr, uint8_t * singletonData, GameStateHeader * state) {
 
@@ -183,7 +182,7 @@ public:
 		ComponentInfo componentInfos[NUM_COMPONENT_TYPES];
 
 		componentInfos[0].componentType = RENDER_ENTITY_TYPE;
-		componentInfos[0].componentName.printf("phRenderEntity");
+		componentInfos[0].componentName.appendf("phRenderEntity");
 		componentInfos[0].componentEditor =
 			[](uint8_t* editorState, uint8_t* componentData, GameStateHeader* state, uint32_t entity) {
 
@@ -205,7 +204,7 @@ public:
 		};
 
 		componentInfos[1].componentType = SPHERE_LIGHT_TYPE;
-		componentInfos[1].componentName.printf("phSphereLight");
+		componentInfos[1].componentName.appendf("phSphereLight");
 		componentInfos[1].componentEditor =
 			[](uint8_t* editorState, uint8_t* componentData, GameStateHeader* state, uint32_t entity) {
 
@@ -231,7 +230,7 @@ public:
 
 		// Load cube mesh
 		StringID cubeMeshId = resStrings.getStringID("virtual/cube");
-		ph::Mesh cubeMesh = createCubeMesh(getDefaultAllocator());
+		sfz::Mesh cubeMesh = createCubeMesh(getDefaultAllocator());
 		renderer.uploadMeshBlocking(cubeMeshId, cubeMesh);
 
 		{
@@ -239,7 +238,7 @@ public:
 
 			// Load sponza level
 			Mesh mesh;
-			DynArray<ImageAndPath> textures;
+			sfz::Array<ImageAndPath> textures;
 			{
 				bool success = loadAssetsFromGltf(
 					"res/sponza.gltf",
@@ -258,18 +257,19 @@ public:
 				if (!renderer.textureLoaded(item.globalPathId)) {
 					bool success =
 						renderer.uploadTextureBlocking(item.globalPathId, item.image, true);
-					sfz_assert_debug(success);
+					sfz_assert(success);
 				}
 			}
 
 			// Upload sponza mesh to Renderer
 			bool sponzaUploadSuccess =
 				renderer.uploadMeshBlocking(sponzaId, mesh);
-			sfz_assert_debug(sponzaUploadSuccess);
+			sfz_assert(sponzaUploadSuccess);
 
 			// Create RenderEntity
 			StaticScene& staticScene = mStaticScene;
-			staticScene.renderEntities.create(1);
+			staticScene.renderEntities.init(0, sfz::getDefaultAllocator(), sfz_dbg(""));
+			staticScene.sphereLights.init(0, sfz::getDefaultAllocator(), sfz_dbg(""));
 			{
 				RenderEntity entity;
 				entity.meshId = sponzaId;
@@ -326,7 +326,7 @@ public:
 			ecs->addComponent(entity, RENDER_ENTITY_TYPE, renderEntity);
 		}
 
-		GlobalConfig& cfg = ph::getGlobalConfig();
+		GlobalConfig& cfg = sfz::getGlobalConfig();
 		mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
 #if defined(SFZ_IOS)
 		cfg.getSetting("Console", "active")->setBool(true);
@@ -449,14 +449,14 @@ public:
 	{
 		(void)updateInfo;
 
-		StringCollection& resStrings = ph::getResourceStrings();
+		StringCollection& resStrings = sfz::getResourceStrings();
 
 		// Grab common ECS stuff
 		GameStateHeader* gameState = mGameStateContainer.getHeader();
 		ComponentMask* masks = gameState->componentMasks();
 
 		// Calculate view and projection matrices
-		const vec2_s32 windowRes = renderer.windowResolution();
+		const vec2_i32 windowRes = renderer.windowResolution();
 		const float aspect = float(windowRes.x) / float(windowRes.y);
 
 		mat4 viewMatrix;
@@ -473,10 +473,10 @@ public:
 		const mat4 invProjMatrix = sfz::inverse(projMatrix);
 
 		// Create list of point lights
-		ph::ForwardShaderPointLightsBuffer shaderPointLights;
+		sfz::ForwardShaderPointLightsBuffer shaderPointLights;
 		for (const phSphereLight& sphereLight : mStaticScene.sphereLights) {
 			
-			ph::ShaderPointLight& pointLight =
+			sfz::ShaderPointLight& pointLight =
 				shaderPointLights.pointLights[shaderPointLights.numPointLights];
 			shaderPointLights.numPointLights += 1;
 
@@ -492,7 +492,7 @@ public:
 
 			const phSphereLight& sphereLight = sphereLights[entity];
 
-			ph::ShaderPointLight& pointLight =
+			sfz::ShaderPointLight& pointLight =
 				shaderPointLights.pointLights[shaderPointLights.numPointLights];
 			shaderPointLights.numPointLights += 1;
 
@@ -503,13 +503,13 @@ public:
 
 		StringID fullscreenTriangleId = resStrings.getStringID("FullscreenTriangle");
 
-		const ph::MeshRegisters noRegisters;
+		const sfz::MeshRegisters noRegisters;
 
 
 		// Lambda for rendering all geometry
 		// --------------------------------------------------------------------------------------------
 
-		auto renderGeometry = [&](const ph::MeshRegisters& registers, mat4 viewMatrix) {
+		auto renderGeometry = [&](const sfz::MeshRegisters& registers, mat4 viewMatrix) {
 			// Static scene
 			for (const RenderEntity& entity : mStaticScene.renderEntities) {
 
@@ -565,7 +565,7 @@ public:
 			// Set projection matrix push constant
 			renderer.stageSetPushConstant(0, projMatrix);
 
-			ph::MeshRegisters registers;
+			sfz::MeshRegisters registers;
 			registers.materialIdxPushConstant = 2;
 			registers.materialsArray = 3;
 			registers.albedo = 0;
@@ -580,7 +580,7 @@ public:
 
 		// Calculate cascaded shadow map info
 		const vec3 dirLightDirWS = sfz::normalize(vec3(0.0f, -1.0f, 0.1f));
-		ph::CascadedShadowMapInfo cascadedInfo;
+		sfz::CascadedShadowMapInfo cascadedInfo;
 		{
 			constexpr uint32_t NUM_LEVELS = 3;
 			constexpr float LEVEL_DISTS[NUM_LEVELS] = {
@@ -588,7 +588,7 @@ public:
 				64.0f,
 				128.0f
 			};
-			cascadedInfo = ph::calculateCascadedShadowMapInfo(
+			cascadedInfo = sfz::calculateCascadedShadowMapInfo(
 				mCam.pos,
 				mCam.dir,
 				mCam.up,
@@ -647,7 +647,7 @@ public:
 
 		{
 			bool success = renderer.stageBarrierProgressNext();
-			sfz_assert_debug(success);
+			sfz_assert(success);
 		}
 
 		// Directional shading
@@ -661,7 +661,7 @@ public:
 			renderer.stageSetPushConstant(0, invProjMatrix);
 
 			struct {
-				ph::DirectionalLight dirLight;
+				sfz::DirectionalLight dirLight;
 				mat4 lightMatrix1;
 				mat4 lightMatrix2;
 				mat4 lightMatrix3;
@@ -681,7 +681,6 @@ public:
 			renderer.stageSetConstantBuffer(1, lightInfo);
 
 			// Fullscreen pass
-			ph::MeshRegisters noRegisters;
 			renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
 			renderer.stageEndInput();
@@ -701,7 +700,6 @@ public:
 			renderer.stageSetConstantBuffer(1, shaderPointLights);
 
 			// Fullscreen pass
-			ph::MeshRegisters noRegisters;
 			renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
 			renderer.stageEndInput();
@@ -713,19 +711,17 @@ public:
 
 		{
 			bool success = renderer.stageBarrierProgressNext();
-			sfz_assert_debug(success);
+			sfz_assert(success);
 
 			// Begin input
 			StringID copyOutPassName = resStrings.getStringID("Copy Out Pass");
 			renderer.stageBeginInput(copyOutPassName);
 
 			// Set window resolution push constant
-			vec2_s32 windowRes = renderer.windowResolution();
 			vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
 			renderer.stageSetPushConstant(0, pushConstantRes);
 
 			// Fullscreen pass
-			ph::MeshRegisters noRegisters;
 			renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
 			renderer.stageEndInput();
@@ -740,7 +736,7 @@ public:
 	void injectConsoleMenu() override final
 	{
 		// View of ECS system
-		ph::GameStateHeader* gameState = mGameStateContainer.getHeader();
+		sfz::GameStateHeader* gameState = mGameStateContainer.getHeader();
 		ImGui::SetNextWindowPos(vec2(700.0f, 00.0f), ImGuiCond_FirstUseEver);
 		mGameStateEditor.render(gameState);
 	}
@@ -783,7 +779,7 @@ private:
 	}
 
 	void updateEmulatedController(
-		const DynArray<SDL_Event>& events,
+		const sfz::Array<SDL_Event>& events,
 		const Mouse& rawMouse) noexcept
 	{
 		EmulatedGameController& ec = mEmulatedController;
@@ -986,7 +982,7 @@ private:
 		if (ec.leftStickLeft != ButtonState::NOT_PRESSED) leftStick.x = -1.0f;
 		else if (ec.leftStickRight != ButtonState::NOT_PRESSED) leftStick.x = 1.0f;
 
-		leftStick = safeNormalize(leftStick);
+		leftStick = normalizeSafe(leftStick);
 		if (ec.shiftPressed != ButtonState::NOT_PRESSED) leftStick *= 0.5f;
 
 		ec.state.leftStick = leftStick;
@@ -1021,5 +1017,5 @@ private:
 
 UniquePtr<GameLogic> createTestbedLogic(Allocator* allocator) noexcept
 {
-	return sfz::makeUnique<TestbedLogic>(allocator);
+	return sfz::makeUnique<TestbedLogic>(allocator, sfz_dbg(""));
 }

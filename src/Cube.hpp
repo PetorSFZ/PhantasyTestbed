@@ -1,9 +1,8 @@
 #pragma once
 
-#include <sfz/math/Vector.hpp>
-#include <sfz/memory/Allocator.hpp>
+#include <skipifzero.hpp>
 
-#include <ph/rendering/Mesh.hpp>
+#include <sfz/rendering/Mesh.hpp>
 
 using sfz::Allocator;
 using sfz::vec2;
@@ -158,14 +157,14 @@ constexpr uint32_t CUBE_INDICES[] = {
 constexpr uint32_t CUBE_NUM_VERTICES = sizeof(CUBE_POSITIONS) / sizeof(vec3);
 constexpr uint32_t CUBE_NUM_INDICES = sizeof(CUBE_INDICES) / sizeof(uint32_t);
 
-inline ph::Mesh createCubeMesh(Allocator* allocator) noexcept
+inline sfz::Mesh createCubeMesh(Allocator* allocator) noexcept
 {
 	// Create mesh from hardcoded values
-	ph::Mesh mesh;
+	sfz::Mesh mesh;
 
 	// Vertices
-	mesh.vertices.create(CUBE_NUM_VERTICES, allocator);
-	mesh.vertices.addMany(CUBE_NUM_VERTICES);
+	mesh.vertices.init(CUBE_NUM_VERTICES, allocator, sfz_dbg(""));
+	mesh.vertices.add(sfz::Vertex(), CUBE_NUM_VERTICES);
 	for (uint32_t i = 0; i < CUBE_NUM_VERTICES; i++) {
 		mesh.vertices[i].pos = CUBE_POSITIONS[i];
 		mesh.vertices[i].normal = CUBE_NORMALS[i];
@@ -173,24 +172,24 @@ inline ph::Mesh createCubeMesh(Allocator* allocator) noexcept
 	}
 
 	// Indices
-	mesh.indices.create(CUBE_NUM_INDICES, allocator);
+	mesh.indices.init(CUBE_NUM_INDICES, allocator, sfz_dbg(""));
 	mesh.indices.add(CUBE_INDICES, CUBE_NUM_INDICES);
 
 	// Components
-	ph::MeshComponent comp;
+	sfz::MeshComponent comp;
 	comp.materialIdx = 0;
 	comp.firstIndex = 0;
 	comp.numIndices = CUBE_NUM_INDICES;
-	mesh.components.create(1, allocator);
+	mesh.components.init(1, allocator, sfz_dbg(""));
 	mesh.components.add(std::move(comp));
 
 	// Material
-	ph::Material material;
+	sfz::Material material;
 	material.albedo = sfz::vec4_u8(255, 0, 0, 255);
 	material.emissive = sfz::vec3(1.0f, 0.0f, 0.0f);
 	material.roughness = 255;
 	material.metallic = 0;
-	mesh.materials.create(1, allocator);
+	mesh.materials.init(1, allocator, sfz_dbg(""));
 	mesh.materials.add(material);
 
 	return mesh;

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <ph/game_loop/DefaultGameUpdateable.hpp>
+#include <sfz/game_loop/DefaultGameUpdateable.hpp>
 
-using ph::GameLogic;
+using sfz::GameLogic;
 using sfz::Allocator;
 using sfz::UniquePtr;
 

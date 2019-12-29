@@ -1,26 +1,28 @@
-#include <ph/PhantasyEngineMain.hpp>
-#include <ph/game_loop/DefaultGameUpdateable.hpp>
-#include <ph/game_loop/GameLoopUpdateable.hpp>
+#include <skipifzero.hpp>
+#include <skipifzero_smart_pointers.hpp>
 
-#include <sfz/memory/SmartPointers.hpp>
+#include <sfz/Context.hpp>
+#include <sfz/PhantasyEngineMain.hpp>
+#include <sfz/game_loop/DefaultGameUpdateable.hpp>
+#include <sfz/game_loop/GameLoopUpdateable.hpp>
 
 #include "TestbedLogic.hpp"
 
-static ph::InitOptions createInitOptions()
+static sfz::InitOptions createInitOptions()
 {
-	ph::InitOptions options;
+	sfz::InitOptions options;
 
 	options.appName = "PhantasyTestbed";
 
 #ifdef __EMSCRIPTEN__
-	options.iniLocation = ph::IniLocation::NEXT_TO_EXECUTABLE;
+	options.iniLocation = sfz::IniLocation::NEXT_TO_EXECUTABLE;
 #else
-	options.iniLocation = ph::IniLocation::MY_GAMES_DIR;
+	options.iniLocation = sfz::IniLocation::MY_GAMES_DIR;
 #endif
 
-	options.createInitialUpdateable = []() -> sfz::UniquePtr<ph::GameLoopUpdateable> {
+	options.createInitialUpdateable = []() -> sfz::UniquePtr<sfz::GameLoopUpdateable> {
 		Allocator* allocator = sfz::getDefaultAllocator();
-		return ph::createDefaultGameUpdateable(allocator, createTestbedLogic(allocator));
+		return sfz::createDefaultGameUpdateable(allocator, createTestbedLogic(allocator));
 	};
 
 	return options;
