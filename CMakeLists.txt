@@ -41,6 +41,10 @@ phAddZeroG()
 # tinygltf: ${TINYGLTF_FOUND}, ${TINYGLTF_INCLUDE_DIRS}
 phAddBundledExternals()
 
+# ZeroG-ImGui
+# ${ZEROG_IMGUI_FOUND}, ${ZEROG_IMGUI_INCLUDE_DIRS}, ${ZEROG_IMGUI_LIBRARIES}
+phAddZeroGImGui()
+
 # PhantasyEngine
 # ${PHANTASY_ENGINE_FOUND}, ${PHANTASY_ENGINE_INCLUDE_DIRS}, ${PHANTASY_ENGINE_LIBRARIES}
 phAddPhantasyEngineTargets()
