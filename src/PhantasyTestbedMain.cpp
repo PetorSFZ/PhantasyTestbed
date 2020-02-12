@@ -8,24 +8,21 @@
 
 #include "TestbedLogic.hpp"
 
-static sfz::InitOptions createInitOptions()
+#if defined(_WIN32) && defined(NDEBUG)
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif
+
+sfz::InitOptions PhantasyEngineUserMain(int argc, char* argv[])
 {
+	(void)argc;
+	(void)argv;
 	sfz::InitOptions options;
-
 	options.appName = "PhantasyTestbed";
-
 #ifdef __EMSCRIPTEN__
 	options.iniLocation = sfz::IniLocation::NEXT_TO_EXECUTABLE;
 #else
 	options.iniLocation = sfz::IniLocation::MY_GAMES_DIR;
 #endif
-
-	options.createInitialUpdateable = []() -> sfz::UniquePtr<sfz::GameLoopUpdateable> {
-		Allocator* allocator = sfz::getDefaultAllocator();
-		return sfz::createDefaultGameUpdateable(allocator, createTestbedLogic(allocator));
-	};
-
+	options.initialGameLogic = createTestbedLogic(sfz::getDefaultAllocator());
 	return options;
 }
-
-PHANTASY_ENGINE_MAIN(createInitOptions);
