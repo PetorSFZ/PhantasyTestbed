@@ -58,9 +58,7 @@ set(RESOURCES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/res)
 
 set(SRC_FILES
 	${SRC_DIR}/Cube.hpp
-	${SRC_DIR}/PhantasyTestbedMain.cpp
-	${SRC_DIR}/TestbedLogic.hpp
-	${SRC_DIR}/TestbedLogic.cpp
+	${SRC_DIR}/PhantasyTestbed.cpp
 )
 source_group(TREE ${SRC_DIR} FILES ${SRC_FILES})
 
