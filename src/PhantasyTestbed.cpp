@@ -6,7 +6,7 @@
 #include <sfz/Context.hpp>
 #include <sfz/PhantasyEngineMain.hpp>
 #include <sfz/config/GlobalConfig.hpp>
-#include <sfz/console/Console.hpp>
+#include <sfz/debug/Console.hpp>
 #include <sfz/Logging.hpp>
 #include <sfz/math/MathSupport.hpp>
 #include <sfz/math/Matrix.hpp>
@@ -986,13 +986,13 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	// Update console and inject testbed specific windows
-	state.console.render(deltaSecs * 1000.0f);
+	state.console.render();
 	if (state.console.active()) {
 
 		// View of ECS system
-		sfz::GameStateHeader* gameState = state.mGameStateContainer.getHeader();
+		sfz::GameStateHeader* gameStateTmp = state.mGameStateContainer.getHeader();
 		ImGui::SetNextWindowPos(vec2(700.0f, 00.0f), ImGuiCond_FirstUseEver);
-		state.mGameStateEditor.render(gameState);
+		state.mGameStateEditor.render(gameStateTmp);
 
 		// Render Renderer's UI
 		renderer->renderImguiUI();
