@@ -904,7 +904,7 @@ static sfz::UpdateOp onUpdate(
 	// --------------------------------------------------------------------------------------------
 
 	{
-		bool success = renderer->stageBarrierProgressNext();
+		bool success = renderer->frameProgressNextStageGroup();
 		sfz_assert(success);
 	}
 
@@ -968,7 +968,7 @@ static sfz::UpdateOp onUpdate(
 	// --------------------------------------------------------------------------------------------
 
 	{
-		bool success = renderer->stageBarrierProgressNext();
+		bool success = renderer->frameProgressNextStageGroup();
 		sfz_assert(success);
 
 		// Begin input
