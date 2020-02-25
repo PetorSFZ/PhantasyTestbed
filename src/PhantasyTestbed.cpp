@@ -717,6 +717,13 @@ static sfz::UpdateOp onUpdate(
 	const vec2_i32 windowRes = renderer->windowResolution();
 	const float aspect = float(windowRes.x) / float(windowRes.y);
 
+	// Calculate internal resolution
+	GlobalConfig& cfg = getGlobalConfig();
+	const float internalResScale =
+		cfg.getSetting("Renderer", "internalResolutionScale")->floatValue();
+	const vec2_i32 internalRes = vec2_i32(
+		std::round(windowRes.x * internalResScale), std::round(windowRes.y * internalResScale));
+
 	mat4 viewMatrix;
 	zg::createViewMatrix(
 		viewMatrix.data(),
@@ -939,7 +946,10 @@ static sfz::UpdateOp onUpdate(
 		renderer->stageSetConstantBuffer(1, lightInfo);
 
 		// Fullscreen pass
-		renderer->stageDrawMesh(fullscreenTriangleId, noRegisters);
+		// Run one thread per pixel
+		constexpr vec2_i32 groupDim = vec2_i32(32, 16);
+		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
+		renderer->stageDispatchCompute(numGroups.x, numGroups.y);
 
 		renderer->stageEndInput();
 	}
