@@ -947,7 +947,7 @@ static sfz::UpdateOp onUpdate(
 
 		// Fullscreen pass
 		// Run one thread per pixel
-		constexpr vec2_i32 groupDim = vec2_i32(32, 16);
+		const vec2_i32 groupDim = renderer->stageGetComputeGroupDims().xy;
 		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
 		renderer->stageDispatchCompute(numGroups.x, numGroups.y);
 
