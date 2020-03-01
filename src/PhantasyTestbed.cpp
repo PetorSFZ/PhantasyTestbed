@@ -367,12 +367,11 @@ static void updateEmulatedController(
 // Game loop functions
 // ------------------------------------------------------------------------------------------------
 
-static void onInit(
-	sfz::Renderer* renderer,
-	void* userPtr)
+static void onInit(void* userPtr)
 {
 	PhantasyTestbedState& state = *static_cast<PhantasyTestbedState*>(userPtr);
 	sfz::StringCollection& resStrings = getResourceStrings();
+	sfz::Renderer& renderer = sfz::getRenderer();
 
 	// Initialize console
 	constexpr const char* windows[1] = {
@@ -382,12 +381,12 @@ static void onInit(
 
 	// Load renderer config
 	bool rendererLoadConfigSuccess =
-		renderer->loadConfiguration("res_ph/shaders/default_renderer_config.json");
+		renderer.loadConfiguration("res_ph/shaders/default_renderer_config.json");
 	sfz_assert(rendererLoadConfigSuccess);
 
 	// Create fullscreen triangle
 	sfz::Mesh fullscreenTriangle = sfz::createFullscreenTriangle(getDefaultAllocator());
-	renderer->uploadMeshBlocking(
+	renderer.uploadMeshBlocking(
 		resStrings.getStringID("FullscreenTriangle"), fullscreenTriangle);
 
 	// Create game state
@@ -480,7 +479,7 @@ static void onInit(
 	// Load cube mesh
 	StringID cubeMeshId = resStrings.getStringID("virtual/cube");
 	sfz::Mesh cubeMesh = createCubeMesh(getDefaultAllocator());
-	renderer->uploadMeshBlocking(cubeMeshId, cubeMesh);
+	renderer.uploadMeshBlocking(cubeMeshId, cubeMesh);
 
 	{
 		StringID sponzaId = resStrings.getStringID("res/sponza.gltf");
@@ -503,16 +502,16 @@ static void onInit(
 
 		// Upload sponza textures to Renderer
 		for (const ImageAndPath& item : textures) {
-			if (!renderer->textureLoaded(item.globalPathId)) {
+			if (!renderer.textureLoaded(item.globalPathId)) {
 				bool success =
-					renderer->uploadTextureBlocking(item.globalPathId, item.image, true);
+					renderer.uploadTextureBlocking(item.globalPathId, item.image, true);
 				sfz_assert(success);
 			}
 		}
 
 		// Upload sponza mesh to Renderer
 		bool sponzaUploadSuccess =
-			renderer->uploadMeshBlocking(sponzaId, mesh);
+			renderer.uploadMeshBlocking(sponzaId, mesh);
 		sfz_assert(sponzaUploadSuccess);
 
 		// Create RenderEntity
@@ -584,12 +583,12 @@ static void onInit(
 }
 
 static sfz::UpdateOp onUpdate(
-	sfz::Renderer* renderer,
 	float deltaSecs,
 	const sfz::UserInput* input,
 	void* userPtr)
 {
 	PhantasyTestbedState& state = *static_cast<PhantasyTestbedState*>(userPtr);
+	sfz::Renderer& renderer = sfz::getRenderer();
 
 	// Enable/disable console if console key is pressed
 	for (const SDL_Event& event : input->events) {
@@ -604,7 +603,7 @@ static sfz::UpdateOp onUpdate(
 
 	// Update imgui
 	updateImgui(
-		renderer->windowResolution(), &input->rawMouse, &input->events, input->controllers.get(0));
+		renderer.windowResolution(), &input->rawMouse, &input->events, input->controllers.get(0));
 	ImGui::NewFrame();
 
 	// Only update stuff if console is not active
@@ -705,7 +704,7 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	// Begin renderer frame
-	renderer->frameBegin();
+	renderer.frameBegin();
 
 	StringCollection& resStrings = sfz::getResourceStrings();
 
@@ -714,7 +713,7 @@ static sfz::UpdateOp onUpdate(
 	ComponentMask* masks = gameState->componentMasks();
 
 	// Calculate view and projection matrices
-	const vec2_i32 windowRes = renderer->windowResolution();
+	const vec2_i32 windowRes = renderer.windowResolution();
 	const float aspect = float(windowRes.x) / float(windowRes.y);
 
 	// Calculate internal resolution
@@ -790,8 +789,8 @@ static sfz::UpdateOp onUpdate(
 			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
 
 			// Render mesh
-			renderer->stageSetPushConstant(1, dynMatrices);
-			renderer->stageDrawMesh(entity.meshId, registers);
+			renderer.stageSetPushConstant(1, dynMatrices);
+			renderer.stageDrawMesh(entity.meshId, registers);
 		}
 
 		// Dynamic objects
@@ -814,8 +813,8 @@ static sfz::UpdateOp onUpdate(
 			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
 
 			// Render mesh
-			renderer->stageSetPushConstant(1, dynMatrices);
-			renderer->stageDrawMesh(entity.meshId, registers);
+			renderer.stageSetPushConstant(1, dynMatrices);
+			renderer.stageDrawMesh(entity.meshId, registers);
 		}
 	};
 
@@ -825,10 +824,10 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		StringID gbufferStageName = resStrings.getStringID("GBuffer Pass");
-		renderer->stageBeginInput(gbufferStageName);
+		renderer.stageBeginInput(gbufferStageName);
 
 		// Set projection matrix push constant
-		renderer->stageSetPushConstant(0, projMatrix);
+		renderer.stageSetPushConstant(0, projMatrix);
 
 		sfz::MeshRegisters registers;
 		registers.materialIdxPushConstant = 2;
@@ -840,7 +839,7 @@ static sfz::UpdateOp onUpdate(
 		// Draw geometry
 		renderGeometry(registers, viewMatrix);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 	// Calculate cascaded shadow map info
@@ -869,41 +868,41 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 1");
-		renderer->stageBeginInput(stageName);
+		renderer.stageBeginInput(stageName);
 
 		// Set push constants
-		renderer->stageSetPushConstant(0, cascadedInfo.projMatrices[0]);
+		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[0]);
 
 		// Draw geometry
 		renderGeometry(noRegisters, cascadedInfo.viewMatrices[0]);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 	{
 		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 2");
-		renderer->stageBeginInput(stageName);
+		renderer.stageBeginInput(stageName);
 
 		// Set push constants
-		renderer->stageSetPushConstant(0, cascadedInfo.projMatrices[1]);
+		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[1]);
 
 		// Draw geometry
 		renderGeometry(noRegisters, cascadedInfo.viewMatrices[1]);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 	{
 		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 3");
-		renderer->stageBeginInput(stageName);
+		renderer.stageBeginInput(stageName);
 
 		// Set push constants
-		renderer->stageSetPushConstant(0, cascadedInfo.projMatrices[2]);
+		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[2]);
 
 		// Draw geometry
 		renderGeometry(noRegisters, cascadedInfo.viewMatrices[2]);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 
@@ -911,7 +910,7 @@ static sfz::UpdateOp onUpdate(
 	// --------------------------------------------------------------------------------------------
 
 	{
-		bool success = renderer->frameProgressNextStageGroup();
+		bool success = renderer.frameProgressNextStageGroup();
 		sfz_assert(success);
 	}
 
@@ -920,10 +919,10 @@ static sfz::UpdateOp onUpdate(
 
 		// Begin input
 		StringID stageName = resStrings.getStringID("Directional Shading Pass");
-		renderer->stageBeginInput(stageName);
+		renderer.stageBeginInput(stageName);
 
 		// Set constant buffers
-		renderer->stageSetPushConstant(0, invProjMatrix);
+		renderer.stageSetPushConstant(0, invProjMatrix);
 
 		struct {
 			sfz::DirectionalLight dirLight;
@@ -943,15 +942,15 @@ static sfz::UpdateOp onUpdate(
 		lightInfo.levelDist1 = cascadedInfo.levelDists[0];
 		lightInfo.levelDist2 = cascadedInfo.levelDists[1];
 		lightInfo.levelDist3 = cascadedInfo.levelDists[2];
-		renderer->stageSetConstantBuffer(1, lightInfo);
+		renderer.stageSetConstantBuffer(1, lightInfo);
 
 		// Fullscreen pass
 		// Run one thread per pixel
-		const vec2_i32 groupDim = renderer->stageGetComputeGroupDims().xy;
+		const vec2_i32 groupDim = renderer.stageGetComputeGroupDims().xy;
 		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
-		renderer->stageDispatchCompute(numGroups.x, numGroups.y);
+		renderer.stageDispatchCompute(numGroups.x, numGroups.y);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 	// Point lights
@@ -959,18 +958,18 @@ static sfz::UpdateOp onUpdate(
 
 		// Begin input
 		StringID stageName = resStrings.getStringID("Point Light Shading Pass");
-		renderer->stageBeginInput(stageName);
+		renderer.stageBeginInput(stageName);
 
 		// Set push constants
-		renderer->stageSetPushConstant(0, invProjMatrix);
+		renderer.stageSetPushConstant(0, invProjMatrix);
 
 		// Set constant buffers
-		renderer->stageSetConstantBuffer(1, shaderPointLights);
+		renderer.stageSetConstantBuffer(1, shaderPointLights);
 
 		// Fullscreen pass
-		renderer->stageDrawMesh(fullscreenTriangleId, noRegisters);
+		renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 
@@ -978,21 +977,21 @@ static sfz::UpdateOp onUpdate(
 	// --------------------------------------------------------------------------------------------
 
 	{
-		bool success = renderer->frameProgressNextStageGroup();
+		bool success = renderer.frameProgressNextStageGroup();
 		sfz_assert(success);
 
 		// Begin input
 		StringID copyOutPassName = resStrings.getStringID("Copy Out Pass");
-		renderer->stageBeginInput(copyOutPassName);
+		renderer.stageBeginInput(copyOutPassName);
 
 		// Set window resolution push constant
 		vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
-		renderer->stageSetPushConstant(0, pushConstantRes);
+		renderer.stageSetPushConstant(0, pushConstantRes);
 
 		// Fullscreen pass
-		renderer->stageDrawMesh(fullscreenTriangleId, noRegisters);
+		renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
 
-		renderer->stageEndInput();
+		renderer.stageEndInput();
 	}
 
 	// Update console and inject testbed specific windows
@@ -1005,14 +1004,14 @@ static sfz::UpdateOp onUpdate(
 		state.mGameStateEditor.render(gameStateTmp);
 
 		// Render Renderer's UI
-		renderer->renderImguiUI();
+		renderer.renderImguiUI();
 	}
 	else {
 		if (state.mShowImguiDemo->boolValue()) ImGui::ShowDemoWindow();
 	}
 
 	// Finish rendering frame
-	renderer->frameFinish();
+	renderer.frameFinish();
 
 	return sfz::UpdateOp::NO_OP;
 }
