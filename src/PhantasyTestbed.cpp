@@ -1002,9 +1002,6 @@ static sfz::UpdateOp onUpdate(
 		sfz::GameStateHeader* gameStateTmp = state.mGameStateContainer.getHeader();
 		ImGui::SetNextWindowPos(vec2(700.0f, 00.0f), ImGuiCond_FirstUseEver);
 		state.mGameStateEditor.render(gameStateTmp);
-
-		// Render Renderer's UI
-		renderer.renderImguiUI();
 	}
 	else {
 		if (state.mShowImguiDemo->boolValue()) ImGui::ShowDemoWindow();
