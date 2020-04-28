@@ -18,6 +18,7 @@
 #include <sfz/rendering/ImguiSupport.hpp>
 #include <sfz/rendering/SphereLight.hpp>
 #include <sfz/state/GameState.hpp>
+#include <sfz/state/GameStateContainer.hpp>
 #include <sfz/state/GameStateEditor.hpp>
 #include <sfz/sdl/ButtonState.hpp>
 #include <sfz/util/FixedTimeUpdateHelpers.hpp>
@@ -400,8 +401,8 @@ static void onInit(void* userPtr)
 		sizeof(RenderEntity),
 		sizeof(phSphereLight)
 	};
-	state.mGameStateContainer = sfz::createGameState(
-		NUM_SINGLETONS, SINGLETON_SIZES, MAX_NUM_ENTITIES, NUM_COMPONENT_TYPES, COMPONENT_SIZES);
+	state.mGameStateContainer = sfz::GameStateContainer::create(
+		NUM_SINGLETONS, SINGLETON_SIZES, MAX_NUM_ENTITIES, NUM_COMPONENT_TYPES, COMPONENT_SIZES, sfz::getDefaultAllocator());
 
 	// Init ECS viewer
 	SingletonInfo singletonInfos[NUM_SINGLETONS];
@@ -474,7 +475,7 @@ static void onInit(void* userPtr)
 	};
 
 	state.mGameStateEditor.init(
-		"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES);
+		"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES, sfz::getDefaultAllocator());
 
 	// Load cube mesh
 	StringID cubeMeshId = resStrings.getStringID("virtual/cube");
