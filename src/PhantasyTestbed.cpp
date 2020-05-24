@@ -977,7 +977,10 @@ static sfz::UpdateOp onUpdate(
 		renderer.stageSetConstantBuffer(1, shaderPointLights);
 
 		// Fullscreen pass
-		renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
+		// Run one thread per pixel
+		const vec2_i32 groupDim = renderer.stageGetComputeGroupDims().xy;
+		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
+		renderer.stageDispatchCompute(numGroups.x, numGroups.y);
 
 		renderer.stageEndInput();
 	}
