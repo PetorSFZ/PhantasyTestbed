@@ -25,7 +25,7 @@
 #include <sfz/util/GltfLoader.hpp>
 #include <sfz/util/GltfWriter.hpp>
 
-#include <ZeroG-cpp.hpp>
+#include <ZeroG.h>
 
 #include "Cube.hpp"
 
@@ -725,14 +725,14 @@ static sfz::UpdateOp onUpdate(
 		std::round(windowRes.x * internalResScale), std::round(windowRes.y * internalResScale));
 
 	mat4 viewMatrix;
-	zg::createViewMatrix(
+	zgUtilCreateViewMatrix(
 		viewMatrix.data(),
 		state.mCam.pos.data(),
 		state.mCam.dir.data(),
 		state.mCam.up.data());
 
 	mat4 projMatrix;
-	zg::createPerspectiveProjectionReverseInfinite(
+	zgUtilCreatePerspectiveProjectionReverseInfinite(
 		projMatrix.data(), state.mCam.vertFovDeg, aspect, state.mCam.near);
 
 	const mat4 invProjMatrix = sfz::inverse(projMatrix);
@@ -827,6 +827,9 @@ static sfz::UpdateOp onUpdate(
 		StringID gbufferStageName = resStrings.getStringID("GBuffer Pass");
 		renderer.stageBeginInput(gbufferStageName);
 
+		renderer.stageClearDepthBufferOptimal();
+		renderer.stageClearRenderTargetsOptimal();
+
 		// Set projection matrix push constant
 		renderer.stageSetPushConstant(0, projMatrix);
 
@@ -871,6 +874,8 @@ static sfz::UpdateOp onUpdate(
 		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 1");
 		renderer.stageBeginInput(stageName);
 
+		renderer.stageClearDepthBufferOptimal();
+
 		// Set push constants
 		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[0]);
 
@@ -884,6 +889,8 @@ static sfz::UpdateOp onUpdate(
 		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 2");
 		renderer.stageBeginInput(stageName);
 
+		renderer.stageClearDepthBufferOptimal();
+
 		// Set push constants
 		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[1]);
 
@@ -896,6 +903,8 @@ static sfz::UpdateOp onUpdate(
 	{
 		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 3");
 		renderer.stageBeginInput(stageName);
+
+		renderer.stageClearDepthBufferOptimal();
 
 		// Set push constants
 		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[2]);
