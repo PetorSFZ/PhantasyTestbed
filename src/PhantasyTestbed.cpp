@@ -824,8 +824,7 @@ static sfz::UpdateOp onUpdate(
 	// --------------------------------------------------------------------------------------------
 
 	{
-		StringID gbufferStageName = resStrings.getStringID("GBuffer Pass");
-		renderer.stageBeginInput(gbufferStageName);
+		renderer.stageBeginInput("GBuffer Pass");
 
 		renderer.stageClearDepthBufferOptimal();
 		renderer.stageClearRenderTargetsOptimal();
@@ -871,8 +870,7 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	{
-		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 1");
-		renderer.stageBeginInput(stageName);
+		renderer.stageBeginInput("Directional Shadow Map Pass 1");
 
 		renderer.stageClearDepthBufferOptimal();
 
@@ -886,8 +884,7 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	{
-		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 2");
-		renderer.stageBeginInput(stageName);
+		renderer.stageBeginInput("Directional Shadow Map Pass 2");
 
 		renderer.stageClearDepthBufferOptimal();
 
@@ -901,8 +898,7 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	{
-		StringID stageName = resStrings.getStringID("Directional Shadow Map Pass 3");
-		renderer.stageBeginInput(stageName);
+		renderer.stageBeginInput("Directional Shadow Map Pass 3");
 
 		renderer.stageClearDepthBufferOptimal();
 
@@ -926,10 +922,7 @@ static sfz::UpdateOp onUpdate(
 
 	// Directional shading
 	{
-
-		// Begin input
-		StringID stageName = resStrings.getStringID("Directional Shading Pass");
-		renderer.stageBeginInput(stageName);
+		renderer.stageBeginInput("Directional Shading Pass");
 
 		// Set constant buffers
 		renderer.stageSetPushConstant(0, invProjMatrix);
@@ -965,10 +958,7 @@ static sfz::UpdateOp onUpdate(
 
 	// Point lights
 	{
-
-		// Begin input
-		StringID stageName = resStrings.getStringID("Point Light Shading Pass");
-		renderer.stageBeginInput(stageName);
+		renderer.stageBeginInput("Point Light Shading Pass");
 
 		// Set push constants
 		renderer.stageSetPushConstant(0, invProjMatrix);
@@ -992,10 +982,10 @@ static sfz::UpdateOp onUpdate(
 	{
 		bool success = renderer.frameProgressNextStageGroup();
 		sfz_assert(success);
+	}
 
-		// Begin input
-		StringID copyOutPassName = resStrings.getStringID("Copy Out Pass");
-		renderer.stageBeginInput(copyOutPassName);
+	{
+		renderer.stageBeginInput("Copy Out Pass");
 
 		// Set window resolution push constant
 		vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
