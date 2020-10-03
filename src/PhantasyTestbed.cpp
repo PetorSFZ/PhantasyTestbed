@@ -1,16 +1,15 @@
 #include <imgui.h>
 
 #include <skipifzero.hpp>
+#include <skipifzero_math.hpp>
 #include <skipifzero_smart_pointers.hpp>
+#include <skipifzero_strings.hpp>
 
 #include <sfz/Context.hpp>
 #include <sfz/PhantasyEngineMain.hpp>
 #include <sfz/config/GlobalConfig.hpp>
 #include <sfz/debug/Console.hpp>
 #include <sfz/Logging.hpp>
-#include <sfz/math/MathSupport.hpp>
-#include <sfz/math/Matrix.hpp>
-#include <sfz/math/ProjectionMatrices.hpp>
 #include <sfz/renderer/Renderer.hpp>
 #include <sfz/renderer/BuiltinShaderTypes.hpp>
 #include <sfz/renderer/CascadedShadowMaps.hpp>
@@ -20,7 +19,6 @@
 #include <sfz/state/GameState.hpp>
 #include <sfz/state/GameStateContainer.hpp>
 #include <sfz/state/GameStateEditor.hpp>
-#include <sfz/sdl/ButtonState.hpp>
 #include <sfz/util/FixedTimeUpdateHelpers.hpp>
 #include <sfz/util/GltfLoader.hpp>
 #include <sfz/util/GltfWriter.hpp>
@@ -34,8 +32,6 @@
 #endif
 
 using namespace sfz;
-using namespace sfz;
-using namespace sfz::sdl;
 
 // Helper structs
 // ------------------------------------------------------------------------------------------------
@@ -50,10 +46,10 @@ struct CameraData {
 };
 
 struct RenderEntity final {
-	sfz::Quaternion rotation = sfz::Quaternion::identity();
+	sfz::quat rotation = sfz::quat::identity();
 	sfz::vec3 scale = sfz::vec3(1.0f);
 	sfz::vec3 translation = sfz::vec3(0.0f);
-	StringID meshId = StringID::invalid();
+	strID meshId;
 
 	sfz::mat34 transform() const
 	{
@@ -62,9 +58,9 @@ struct RenderEntity final {
 
 		// Matrix multiply in scale (order does not matter)
 		sfz::vec4 scaleVec = sfz::vec4(scale, 1.0f);
-		tmp.row0 *= scaleVec;
-		tmp.row1 *= scaleVec;
-		tmp.row2 *= scaleVec;
+		tmp.row(0) *= scaleVec;
+		tmp.row(1) *= scaleVec;
+		tmp.row(2) *= scaleVec;
 
 		// Add translation (last)
 		tmp.setColumn(3, translation);
@@ -76,22 +72,6 @@ struct RenderEntity final {
 struct StaticScene final {
 	sfz::Array<RenderEntity> renderEntities;
 	sfz::Array<phSphereLight> sphereLights;
-};
-
-struct EmulatedGameController {
-	sfz::sdl::GameControllerState state;
-
-	ButtonState leftStickUp = ButtonState::NOT_PRESSED;
-	ButtonState leftStickDown = ButtonState::NOT_PRESSED;
-	ButtonState leftStickLeft = ButtonState::NOT_PRESSED;
-	ButtonState leftStickRight = ButtonState::NOT_PRESSED;
-
-	ButtonState shiftPressed = ButtonState::NOT_PRESSED;
-
-	ButtonState rightStickUp = ButtonState::NOT_PRESSED;
-	ButtonState rightStickDown = ButtonState::NOT_PRESSED;
-	ButtonState rightStickLeft = ButtonState::NOT_PRESSED;
-	ButtonState rightStickRight = ButtonState::NOT_PRESSED;
 };
 
 // ECS component types
@@ -111,8 +91,7 @@ struct PhantasyTestbedState final {
 	CameraData mCam;
 	StaticScene mStaticScene;
 
-	EmulatedGameController mEmulatedController;
-	sfz::GameControllerState mCtrl;
+	sfz::RawInputState prevInput = {};
 
 	Setting* mShowImguiDemo = nullptr;
 	sfz::GameStateContainer mGameStateContainer;
@@ -129,249 +108,12 @@ static void setDir(CameraData& cam, vec3 direction, vec3 up) noexcept
 	//sfz_assert_debug(approxEqual(dot(mCam.dir, mCam.up), 0.0f));
 }
 
-static void updateEmulatedController(
-	PhantasyTestbedState& state,
-	const sfz::Array<SDL_Event>& events,
-	const Mouse& rawMouse) noexcept
-{
-	EmulatedGameController& ec = state.mEmulatedController;
-	sdl::GameControllerState& c = ec.state;
-
-	// Changes previous DOWN state to HELD state.
-	auto changeDownToHeld = [](ButtonState& state) {
-		if (state == ButtonState::DOWN) state = ButtonState::HELD;
-	};
-
-	changeDownToHeld(c.a);
-	changeDownToHeld(c.b);
-	changeDownToHeld(c.x);
-	changeDownToHeld(c.y);
-
-	changeDownToHeld(c.leftShoulder);
-	changeDownToHeld(c.rightShoulder);
-	changeDownToHeld(c.leftStickButton);
-	changeDownToHeld(c.rightStickButton);
-
-	changeDownToHeld(c.padUp);
-	changeDownToHeld(c.padDown);
-	changeDownToHeld(c.padLeft);
-	changeDownToHeld(c.padRight);
-
-	changeDownToHeld(c.start);
-	changeDownToHeld(c.back);
-	changeDownToHeld(c.guide);
-
-	changeDownToHeld(ec.leftStickUp);
-	changeDownToHeld(ec.leftStickDown);
-	changeDownToHeld(ec.leftStickLeft);
-	changeDownToHeld(ec.leftStickRight);
-
-	changeDownToHeld(ec.shiftPressed);
-
-	changeDownToHeld(ec.rightStickUp);
-	changeDownToHeld(ec.rightStickDown);
-	changeDownToHeld(ec.rightStickLeft);
-	changeDownToHeld(ec.rightStickRight);
-
-
-	// Changes previous UP state to NOT_PRESSED state.
-	auto changeUpToNotPressed = [](ButtonState& state) {
-		if (state == ButtonState::UP) state = ButtonState::NOT_PRESSED;
-	};
-
-	changeUpToNotPressed(c.a);
-	changeUpToNotPressed(c.b);
-	changeUpToNotPressed(c.x);
-	changeUpToNotPressed(c.y);
-
-	changeUpToNotPressed(c.leftShoulder);
-	changeUpToNotPressed(c.rightShoulder);
-	changeUpToNotPressed(c.leftStickButton);
-	changeUpToNotPressed(c.rightStickButton);
-
-	changeUpToNotPressed(c.padUp);
-	changeUpToNotPressed(c.padDown);
-	changeUpToNotPressed(c.padLeft);
-	changeUpToNotPressed(c.padRight);
-
-	changeUpToNotPressed(c.start);
-	changeUpToNotPressed(c.back);
-	changeUpToNotPressed(c.guide);
-
-	changeUpToNotPressed(ec.leftStickUp);
-	changeUpToNotPressed(ec.leftStickDown);
-	changeUpToNotPressed(ec.leftStickLeft);
-	changeUpToNotPressed(ec.leftStickRight);
-
-	changeUpToNotPressed(ec.shiftPressed);
-
-	changeUpToNotPressed(ec.rightStickUp);
-	changeUpToNotPressed(ec.rightStickDown);
-	changeUpToNotPressed(ec.rightStickLeft);
-	changeUpToNotPressed(ec.rightStickRight);
-
-
-	// Check events from SDL
-	for (const SDL_Event& event : events) {
-		switch (event.type) {
-		case SDL_KEYDOWN:
-			switch (event.key.keysym.sym) {
-			case 'w':
-			case 'W':
-				ec.leftStickUp = ButtonState::DOWN;
-				break;
-			case 's':
-			case 'S':
-				ec.leftStickDown = ButtonState::DOWN;
-				break;
-			case 'a':
-			case 'A':
-				ec.leftStickLeft = ButtonState::DOWN;
-				break;
-			case 'd':
-			case 'D':
-				ec.leftStickRight = ButtonState::DOWN;
-				break;
-			case SDLK_LSHIFT:
-			case SDLK_RSHIFT:
-				ec.shiftPressed = ButtonState::DOWN;
-				break;
-			case SDLK_UP:
-				ec.rightStickUp = ButtonState::DOWN;
-				break;
-			case SDLK_DOWN:
-				ec.rightStickDown = ButtonState::DOWN;
-				break;
-			case SDLK_LEFT:
-				ec.rightStickLeft = ButtonState::DOWN;
-				break;
-			case SDLK_RIGHT:
-				ec.rightStickRight = ButtonState::DOWN;
-				break;
-			case 'q':
-			case 'Q':
-				c.leftShoulder = ButtonState::DOWN;
-				break;
-			case 'e':
-			case 'E':
-				c.rightShoulder = ButtonState::DOWN;
-				break;
-			case 'f':
-			case 'F':
-				c.y = ButtonState::DOWN;
-				break;
-			case 'g':
-			case 'G':
-				c.x = ButtonState::DOWN;
-				break;
-			case SDLK_ESCAPE:
-				c.back = ButtonState::DOWN;
-				break;
-			}
-			break;
-		case SDL_KEYUP:
-			switch (event.key.keysym.sym) {
-			case 'w':
-			case 'W':
-				ec.leftStickUp = ButtonState::UP;
-				break;
-			case 'a':
-			case 'A':
-				ec.leftStickLeft = ButtonState::UP;
-				break;
-			case 's':
-			case 'S':
-				ec.leftStickDown = ButtonState::UP;
-				break;
-			case 'd':
-			case 'D':
-				ec.leftStickRight = ButtonState::UP;
-				break;
-			case SDLK_LSHIFT:
-			case SDLK_RSHIFT:
-				ec.shiftPressed = ButtonState::UP;
-				break;
-			case SDLK_UP:
-				ec.rightStickUp = ButtonState::UP;
-				break;
-			case SDLK_DOWN:
-				ec.rightStickDown = ButtonState::UP;
-				break;
-			case SDLK_LEFT:
-				ec.rightStickLeft = ButtonState::UP;
-				break;
-			case SDLK_RIGHT:
-				ec.rightStickRight = ButtonState::UP;
-				break;
-			case 'q':
-			case 'Q':
-				c.leftShoulder = ButtonState::UP;
-				break;
-			case 'e':
-			case 'E':
-				c.rightShoulder = ButtonState::UP;
-				break;
-			case 'f':
-			case 'F':
-				c.y = ButtonState::UP;
-				break;
-			case 'g':
-			case 'G':
-				c.x = ButtonState::UP;
-				break;
-			case SDLK_ESCAPE:
-				c.back = ButtonState::UP;
-				break;
-			}
-			break;
-		}
-	}
-
-	// Set left stick
-	vec2 leftStick = vec2(0.0f);
-	if (ec.leftStickUp != ButtonState::NOT_PRESSED) leftStick.y = 1.0f;
-	else if (ec.leftStickDown != ButtonState::NOT_PRESSED) leftStick.y = -1.0f;
-	if (ec.leftStickLeft != ButtonState::NOT_PRESSED) leftStick.x = -1.0f;
-	else if (ec.leftStickRight != ButtonState::NOT_PRESSED) leftStick.x = 1.0f;
-
-	leftStick = normalizeSafe(leftStick);
-	if (ec.shiftPressed != ButtonState::NOT_PRESSED) leftStick *= 0.5f;
-
-	ec.state.leftStick = leftStick;
-
-	// Set right stick
-	vec2 rightStick = rawMouse.motion * 200.0f;
-
-	if (ec.rightStickUp != ButtonState::NOT_PRESSED) rightStick.y += 1.0f;
-	else if (ec.rightStickDown != ButtonState::NOT_PRESSED) rightStick.y += -1.0f;
-	if (ec.rightStickLeft != ButtonState::NOT_PRESSED) rightStick.x += -1.0f;
-	else if (ec.rightStickRight != ButtonState::NOT_PRESSED) rightStick.x += 1.0f;
-
-	if (ec.shiftPressed != ButtonState::NOT_PRESSED) rightStick *= 0.5f;
-	ec.state.rightStick = rightStick;
-
-	// Set triggers
-	if (rawMouse.leftButton == ButtonState::NOT_PRESSED) {
-		state.mEmulatedController.state.rightTrigger = 0.0f;
-	}
-	else {
-		state.mEmulatedController.state.rightTrigger = 1.0f;
-	}
-	if (rawMouse.rightButton == ButtonState::NOT_PRESSED) {
-		state.mEmulatedController.state.leftTrigger = 0.0f;
-	}
-	else {
-		state.mEmulatedController.state.leftTrigger = 1.0f;
-	}
-}
-
 // Game loop functions
 // ------------------------------------------------------------------------------------------------
 
 static void onInit(void* userPtr)
 {
 	PhantasyTestbedState& state = *static_cast<PhantasyTestbedState*>(userPtr);
-	sfz::StringCollection& resStrings = getResourceStrings();
 	sfz::Renderer& renderer = sfz::getRenderer();
 
 	// Initialize console
@@ -387,8 +129,7 @@ static void onInit(void* userPtr)
 
 	// Create fullscreen triangle
 	sfz::Mesh fullscreenTriangle = sfz::createFullscreenTriangle(getDefaultAllocator());
-	renderer.uploadMeshBlocking(
-		resStrings.getStringID("FullscreenTriangle"), fullscreenTriangle);
+	renderer.uploadMeshBlocking(strID("FullscreenTriangle"), fullscreenTriangle);
 
 	// Create game state
 	const uint32_t NUM_SINGLETONS = 1;
@@ -423,7 +164,7 @@ static void onInit(void* userPtr)
 		}
 		vec3 eulerRot = renderEntity.rotation.toEuler();
 		if (ImGui::InputFloat3("Rotation euler", eulerRot.data())) {
-			renderEntity.rotation = Quaternion::fromEuler(eulerRot);
+			renderEntity.rotation = quat::fromEuler(eulerRot);
 			renderEntity.rotation = normalize(renderEntity.rotation);
 		}
 	};
@@ -447,7 +188,7 @@ static void onInit(void* userPtr)
 		}
 		vec3 eulerRot = renderEntity.rotation.toEuler();
 		if (ImGui::InputFloat3("Rotation euler", eulerRot.data())) {
-			renderEntity.rotation = Quaternion::fromEuler(eulerRot);
+			renderEntity.rotation = quat::fromEuler(eulerRot);
 			renderEntity.rotation = normalize(renderEntity.rotation);
 		}
 	};
@@ -478,12 +219,12 @@ static void onInit(void* userPtr)
 		"Game State Editor", singletonInfos, NUM_SINGLETONS, componentInfos, NUM_COMPONENT_TYPES, sfz::getDefaultAllocator());
 
 	// Load cube mesh
-	StringID cubeMeshId = resStrings.getStringID("virtual/cube");
+	strID cubeMeshId = strID("virtual/cube");
 	sfz::Mesh cubeMesh = createCubeMesh(getDefaultAllocator());
 	renderer.uploadMeshBlocking(cubeMeshId, cubeMesh);
 
 	{
-		StringID sponzaId = resStrings.getStringID("res/sponza.gltf");
+		strID sponzaId = strID("res/sponza.gltf");
 
 		// Load sponza level
 		Mesh mesh;
@@ -585,14 +326,17 @@ static void onInit(void* userPtr)
 
 static sfz::UpdateOp onUpdate(
 	float deltaSecs,
-	const sfz::UserInput* input,
+	const SDL_Event* events,
+	uint32_t numEvents,
+	const sfz::RawInputState* rawFrameInput,
 	void* userPtr)
 {
 	PhantasyTestbedState& state = *static_cast<PhantasyTestbedState*>(userPtr);
 	sfz::Renderer& renderer = sfz::getRenderer();
 
 	// Enable/disable console if console key is pressed
-	for (const SDL_Event& event : input->events) {
+	for (uint32_t i = 0; i < numEvents; i++) {
+		const SDL_Event& event = events[i];
 		if (event.type != SDL_KEYUP) continue;
 		if (event.key.keysym.sym == '`' ||
 			event.key.keysym.sym == '~' ||
@@ -603,25 +347,18 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	// Update imgui
-	updateImgui(
-		renderer.windowResolution(), &input->rawMouse, &input->events, input->controllers.get(0));
+	updateImgui(vec2_i32(rawFrameInput->windowDims), *rawFrameInput, events, numEvents);
 	ImGui::NewFrame();
 
 	// Only update stuff if console is not active
 	if (!state.console.active()) {
 
-		for (const SDL_Event& event : input->events) {
+		for (uint32_t i = 0; i < numEvents; i++) {
+			const SDL_Event& event = events[i];
 			if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE) {
 				return UpdateOp::QUIT;
 			}
 		}
-
-		// Update gamecontroller
-		updateEmulatedController(state, input->events, input->rawMouse);
-		uint32_t controllerIndex = 0;
-		const GameController* controller = input->controllers.get(controllerIndex);
-		bool emulatedController = controller == nullptr;
-		state.mCtrl = (emulatedController) ? state.mEmulatedController.state : controller->state();
 
 		// Run fixed timestep updates
 		state.fixedTimeStepper.runTickUpdates(deltaSecs, [&](float tickTimeSecs) {
@@ -633,71 +370,37 @@ static sfz::UpdateOp onUpdate(
 
 			CameraData& cam = state.mCam;
 
-			// Triggers
-			if (state.mCtrl.leftTrigger > state.mCtrl.triggerDeadzone) {
-				currentSpeed += (state.mCtrl.leftTrigger * 25.0f);
-			}
-			if (state.mCtrl.rightTrigger > state.mCtrl.triggerDeadzone) {
+			const sfz::KeyboardState& kb = rawFrameInput->kb;
+			const sfz::MouseState& mouse = rawFrameInput->mouse;
 
-			}
+			if (kb.scancodes[SDL_SCANCODE_LSHIFT]) currentSpeed = 25.0f;
 
-			// Analogue Sticks
-			if (length(state.mCtrl.rightStick) > state.mCtrl.stickDeadzone) {
+			if (mouse.delta != vec2_i32(0)) {
+				vec2 mouseDelta = vec2(mouse.delta) * 0.1f;
 				vec3 right = normalize(cross(cam.dir, cam.up));
-				mat3 xTurn = mat3::rotation3(vec3(0.0f, -1.0f, 0.0f), state.mCtrl.rightStick[0] * turningSpeed * delta);
-				mat3 yTurn = mat3::rotation3(right, state.mCtrl.rightStick[1] * turningSpeed * delta);
+				mat3 xTurn = mat3::rotation3(vec3(0.0f, -1.0f, 0.0f), mouseDelta[0] * turningSpeed * delta);
+				mat3 yTurn = mat3::rotation3(right, mouseDelta[1] * turningSpeed * delta);
 				setDir(cam, yTurn * xTurn * cam.dir, yTurn * xTurn * cam.up);
 			}
-			if (length(state.mCtrl.leftStick) > state.mCtrl.stickDeadzone) {
+
+			// x and y-axis in range [-1, 1]
+			vec2 movement = vec2(0.0f);
+			movement.x = float(kb.scancodes[SDL_SCANCODE_D]) - float(kb.scancodes[SDL_SCANCODE_A]);
+			movement.y = float(kb.scancodes[SDL_SCANCODE_W]) - float(kb.scancodes[SDL_SCANCODE_S]);
+
+			// Normalize movement (i.e. length(movement) <= 1)
+			movement = sfz::normalizeSafe(movement);
+			
+			if (length(movement) > 0.1f) {
 				vec3 right = normalize(cross(cam.dir, cam.up));
-				cam.pos += ((cam.dir * state.mCtrl.leftStick[1] + right * state.mCtrl.leftStick[0]) * currentSpeed * delta);
+				cam.pos += ((cam.dir * movement[1] + right * movement[0]) * currentSpeed * delta);
 			}
 
-			// Control Pad
-			if (state.mCtrl.padUp == ButtonState::DOWN) {
-
-			}
-			else if (state.mCtrl.padDown == ButtonState::DOWN) {
-
-			}
-			else if (state.mCtrl.padLeft == ButtonState::DOWN) {
-
-			}
-			else if (state.mCtrl.padRight == ButtonState::DOWN) {
-
-			}
-
-			// Shoulder buttons
-			if (state.mCtrl.leftShoulder == ButtonState::DOWN || state.mCtrl.leftShoulder == ButtonState::HELD) {
+			if (kb.scancodes[SDL_SCANCODE_Q]) {
 				cam.pos -= vec3(0.0f, 1.0f, 0.0f) * currentSpeed * delta;
 			}
-			else if (state.mCtrl.rightShoulder == ButtonState::DOWN || state.mCtrl.rightShoulder == ButtonState::HELD) {
+			if (kb.scancodes[SDL_SCANCODE_E]) {
 				cam.pos += vec3(0.0f, 1.0f, 0.0f) * currentSpeed * delta;
-			}
-
-			// Face buttons
-			if (state.mCtrl.y == ButtonState::UP) {
-			}
-			if (state.mCtrl.x == ButtonState::UP) {
-			}
-			if (state.mCtrl.b == ButtonState::UP) {
-			}
-			if (state.mCtrl.a == ButtonState::UP) {
-			}
-
-			// Face buttons
-			if (state.mCtrl.y == ButtonState::DOWN) {
-			}
-			if (state.mCtrl.x == ButtonState::DOWN) {
-			}
-			if (state.mCtrl.b == ButtonState::DOWN) {
-			}
-			if (state.mCtrl.a == ButtonState::DOWN) {
-			}
-
-			// Menu buttons
-			if (state.mCtrl.back == ButtonState::UP) {
-				//return UpdateOp::QUIT();
 			}
 
 			setDir(cam, cam.dir, vec3(0.0f, 1.0f, 0.0f));
@@ -706,8 +409,6 @@ static sfz::UpdateOp onUpdate(
 
 	// Begin renderer frame
 	renderer.frameBegin();
-
-	StringCollection& resStrings = sfz::getResourceStrings();
 
 	// Grab common ECS stuff
 	GameStateHeader* gameState = state.mGameStateContainer.getHeader();
@@ -766,7 +467,7 @@ static sfz::UpdateOp onUpdate(
 		pointLight.strength = vec3(sphereLight.color) * (1.0f / 255.0f) * sphereLight.strength;
 	}
 
-	StringID fullscreenTriangleId = resStrings.getStringID("FullscreenTriangle");
+	strID fullscreenTriangleId = strID("FullscreenTriangle");
 
 	const sfz::MeshRegisters noRegisters;
 
@@ -1012,6 +713,9 @@ static sfz::UpdateOp onUpdate(
 
 	// Finish rendering frame
 	renderer.frameFinish();
+
+	// Store input as previous input
+	state.prevInput = *rawFrameInput;
 
 	return sfz::UpdateOp::NO_OP;
 }
