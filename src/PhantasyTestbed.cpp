@@ -16,6 +16,7 @@
 #include <sfz/rendering/FullscreenTriangle.hpp>
 #include <sfz/rendering/ImguiSupport.hpp>
 #include <sfz/rendering/SphereLight.hpp>
+#include <sfz/resources/ResourceManager.hpp>
 #include <sfz/state/GameState.hpp>
 #include <sfz/state/GameStateContainer.hpp>
 #include <sfz/state/GameStateEditor.hpp>
@@ -333,6 +334,7 @@ static sfz::UpdateOp onUpdate(
 {
 	PhantasyTestbedState& state = *static_cast<PhantasyTestbedState*>(userPtr);
 	sfz::Renderer& renderer = sfz::getRenderer();
+	sfz::ResourceManager& resources = sfz::getResourceManager();
 
 	// Enable/disable console if console key is pressed
 	for (uint32_t i = 0; i < numEvents; i++) {
@@ -468,14 +470,77 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	strID fullscreenTriangleId = strID("FullscreenTriangle");
+	sfz::PoolHandle fullscreenTriangleHandle = resources.getMeshHandle(fullscreenTriangleId);
+	sfz_assert(fullscreenTriangleHandle != NULL_HANDLE);
+	sfz::MeshItem* fullscreenTriangleMesh = resources.getMesh(fullscreenTriangleHandle);
 
-	const sfz::MeshRegisters noRegisters;
+	auto drawFullscreenTriangle = [&]() {
+		renderer.stageSetIndexBuffer(fullscreenTriangleMesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
+		renderer.stageSetVertexBuffer(0, fullscreenTriangleMesh->vertexBuffer);
+		sfz_assert(fullscreenTriangleMesh->components.size() == 1);
+		renderer.stageDrawTrianglesIndexed(
+			fullscreenTriangleMesh->components[0].firstIndex,
+			fullscreenTriangleMesh->components[0].numIndices);
+	};
+
+	struct MeshRegisters final {
+		uint32_t materialIdxPushConstant = ~0u;
+		uint32_t materialsArray = ~0u;
+		uint32_t albedo = ~0u;
+		uint32_t metallicRoughness = ~0u;
+		uint32_t normal = ~0u;
+		uint32_t occlusion = ~0u;
+		uint32_t emissive = ~0u;
+	};
+
+	auto drawMesh = [&](strID id, MeshRegisters registers) {
+		sfz::PoolHandle meshHandle = resources.getMeshHandle(id);
+		sfz_assert(meshHandle != NULL_HANDLE);
+		sfz::MeshItem* mesh = resources.getMesh(meshHandle);
+
+		renderer.stageSetVertexBuffer(0, mesh->vertexBuffer);
+		renderer.stageSetIndexBuffer(mesh->indexBuffer, false);
+
+		sfz::PipelineBindings commonBindings;
+		if (registers.materialsArray != ~0u) {
+			commonBindings.addConstBuffer(mesh->materialsBuffer, registers.materialsArray);
+		}
+
+		for (sfz::MeshComponent& comp : mesh->components) {
+
+			sfz_assert(comp.materialIdx < mesh->cpuMaterials.size());
+			const sfz::Material& material = mesh->cpuMaterials[comp.materialIdx];
+
+			// Set material index push constant
+			if (registers.materialIdxPushConstant != ~0u) {
+				sfz::vec4_u32 tmp = sfz::vec4_u32(0u);
+				tmp.x = comp.materialIdx;
+				renderer.stageSetPushConstant(registers.materialIdxPushConstant, tmp);
+			}
+
+			// Create texture bindings
+			sfz::PipelineBindings bindings = commonBindings;
+			auto bindTexture = [&](uint32_t texRegister, strID texID) {
+				if (texRegister != ~0u && texID.isValid()) {
+					bindings.addTexture(texID, texRegister);
+				}
+			};
+			bindTexture(registers.albedo, material.albedoTex);
+			bindTexture(registers.metallicRoughness, material.metallicRoughnessTex);
+			bindTexture(registers.emissive, material.emissiveTex);
+
+			renderer.stageSetBindings(bindings);
+			renderer.stageDrawTrianglesIndexed(comp.firstIndex, comp.numIndices);
+		}
+	};
+
+	const MeshRegisters noRegisters;
 
 
 	// Lambda for rendering all geometry
 	// --------------------------------------------------------------------------------------------
 
-	auto renderGeometry = [&](const sfz::MeshRegisters& registers, mat4 viewMatrix) {
+	auto renderGeometry = [&](const MeshRegisters& registers, mat4 viewMatrix) {
 		// Static scene
 		for (const RenderEntity& entity : state.mStaticScene.renderEntities) {
 
@@ -492,7 +557,7 @@ static sfz::UpdateOp onUpdate(
 
 			// Render mesh
 			renderer.stageSetPushConstant(1, dynMatrices);
-			renderer.stageDrawMesh(entity.meshId, registers);
+			drawMesh(entity.meshId, registers);
 		}
 
 		// Dynamic objects
@@ -516,7 +581,7 @@ static sfz::UpdateOp onUpdate(
 
 			// Render mesh
 			renderer.stageSetPushConstant(1, dynMatrices);
-			renderer.stageDrawMesh(entity.meshId, registers);
+			drawMesh(entity.meshId, registers);
 		}
 	};
 
@@ -533,7 +598,7 @@ static sfz::UpdateOp onUpdate(
 		// Set projection matrix push constant
 		renderer.stageSetPushConstant(0, projMatrix);
 
-		sfz::MeshRegisters registers;
+		MeshRegisters registers;
 		registers.materialIdxPushConstant = 2;
 		registers.materialsArray = 3;
 		registers.albedo = 0;
@@ -715,8 +780,12 @@ static sfz::UpdateOp onUpdate(
 		vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
 		renderer.stageSetPushConstant(0, pushConstantRes);
 
+		sfz::PipelineBindings bindings;
+		bindings.addTexture("LightAccumulation1", 0);
+		renderer.stageSetBindings(bindings);
+
 		// Fullscreen pass
-		renderer.stageDrawMesh(fullscreenTriangleId, noRegisters);
+		drawFullscreenTriangle();
 
 		renderer.stageEndInput();
 	}
