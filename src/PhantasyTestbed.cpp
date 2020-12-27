@@ -646,13 +646,27 @@ static sfz::UpdateOp onUpdate(
 		lightInfo.levelDist1 = cascadedInfo.levelDists[0];
 		lightInfo.levelDist2 = cascadedInfo.levelDists[1];
 		lightInfo.levelDist3 = cascadedInfo.levelDists[2];
-		renderer.stageSetConstantBuffer(1, lightInfo);
+		renderer.stageUploadToStreamingBuffer(
+			"Directional Light Const Buffer", (const uint8_t*)&lightInfo, sizeof(lightInfo));
+
+		sfz::PipelineBindings bindings;
+		bindings.addConstBuffer("Directional Light Const Buffer", 1);
+		bindings.addTexture("GBuffer_albedo", 0);
+		bindings.addTexture("GBuffer_metallic_roughness", 1);
+		bindings.addTexture("GBuffer_emissive", 2);
+		bindings.addTexture("GBuffer_normal", 3);
+		bindings.addTexture("GBuffer_depthbuffer", 4);
+		bindings.addTexture("ShadowMapCascaded1", 5);
+		bindings.addTexture("ShadowMapCascaded2", 6);
+		bindings.addTexture("ShadowMapCascaded3", 7);
+		bindings.addUnorderedTexture("LightAccumulation1", 0, 0);
+		renderer.stageSetBindings(bindings);
 
 		// Fullscreen pass
 		// Run one thread per pixel
 		const vec2_i32 groupDim = renderer.stageGetComputeGroupDims().xy;
 		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
-		renderer.stageDispatchCompute(numGroups.x, numGroups.y);
+		renderer.stageDispatchComputeNoAutoBindings(numGroups.x, numGroups.y);
 
 		renderer.stageEndInput();
 	}
@@ -664,14 +678,23 @@ static sfz::UpdateOp onUpdate(
 		// Set push constants
 		renderer.stageSetPushConstant(0, invProjMatrix);
 
-		// Set constant buffers
-		renderer.stageSetConstantBuffer(1, shaderPointLights);
+		renderer.stageUploadToStreamingBufferUntyped(
+			"Point Lights Buffer", &shaderPointLights, sizeof(uint8_t), sizeof(shaderPointLights));
+
+		sfz::PipelineBindings bindings;
+		bindings.addConstBuffer("Point Lights Buffer", 1);
+		bindings.addTexture("GBuffer_albedo", 0);
+		bindings.addTexture("GBuffer_metallic_roughness", 1);
+		bindings.addTexture("GBuffer_normal", 2);
+		bindings.addTexture("GBuffer_depthbuffer", 3);
+		bindings.addUnorderedTexture("LightAccumulation1", 0, 0);
+		renderer.stageSetBindings(bindings);
 
 		// Fullscreen pass
 		// Run one thread per pixel
 		const vec2_i32 groupDim = renderer.stageGetComputeGroupDims().xy;
 		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
-		renderer.stageDispatchCompute(numGroups.x, numGroups.y);
+		renderer.stageDispatchComputeNoAutoBindings(numGroups.x, numGroups.y);
 
 		renderer.stageEndInput();
 	}
