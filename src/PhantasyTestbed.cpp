@@ -16,7 +16,9 @@
 #include <sfz/rendering/FullscreenTriangle.hpp>
 #include <sfz/rendering/ImguiSupport.hpp>
 #include <sfz/rendering/SphereLight.hpp>
+#include <sfz/resources/FramebufferResource.hpp>
 #include <sfz/resources/ResourceManager.hpp>
+#include <sfz/resources/TextureResource.hpp>
 #include <sfz/state/GameState.hpp>
 #include <sfz/state/GameStateContainer.hpp>
 #include <sfz/state/GameStateEditor.hpp>
@@ -319,10 +321,130 @@ static void onInit(void* userPtr)
 
 	GlobalConfig& cfg = sfz::getGlobalConfig();
 	state.mShowImguiDemo = cfg.sanitizeBool("PhantasyTestbed", "showImguiDemo", true, false);
+	Setting* internalResSetting = cfg.sanitizeFloat("Renderer", "internalResolutionScale", true, 1.0f, 0.01, 4.0f);
 #if defined(SFZ_IOS)
 	cfg.getSetting("Console", "active")->setBool(true);
 	cfg.getSetting("Console", "alwaysShowPerformance")->setBool(true);
 #endif
+
+	// Create resources
+	sfz::ResourceManager& resources = sfz::getResourceManager();
+	const vec2_u32 screenRes = vec2_u32(renderer.windowResolution());
+
+	// GBuffer
+	resources.addTexture(
+		sfz::TextureResource::createScreenRelative(
+			"GBuffer_albedo",
+			ZG_TEXTURE_FORMAT_RGBA_U8_UNORM,
+			screenRes,
+			1.0f,
+			internalResSetting,
+			ZG_TEXTURE_USAGE_RENDER_TARGET,
+			true));
+	resources.addTexture(
+		sfz::TextureResource::createScreenRelative(
+			"GBuffer_metallic_roughness",
+			ZG_TEXTURE_FORMAT_RG_U8_UNORM,
+			screenRes,
+			1.0f,
+			internalResSetting,
+			ZG_TEXTURE_USAGE_RENDER_TARGET,
+			true));
+	resources.addTexture(
+		sfz::TextureResource::createScreenRelative(
+			"GBuffer_emissive",
+			ZG_TEXTURE_FORMAT_RGBA_U8_UNORM,
+			screenRes,
+			1.0f,
+			internalResSetting,
+			ZG_TEXTURE_USAGE_RENDER_TARGET,
+			true));
+	resources.addTexture(
+		sfz::TextureResource::createScreenRelative(
+			"GBuffer_normal",
+			ZG_TEXTURE_FORMAT_RGBA_F16,
+			screenRes,
+			1.0f,
+			internalResSetting,
+			ZG_TEXTURE_USAGE_RENDER_TARGET,
+			true));
+	resources.addTexture(
+		sfz::TextureResource::createScreenRelative(
+			"GBuffer_depthbuffer",
+			ZG_TEXTURE_FORMAT_DEPTH_F32,
+			screenRes,
+			1.0f,
+			internalResSetting,
+			ZG_TEXTURE_USAGE_DEPTH_BUFFER,
+			true));
+	resources.addFramebuffer(
+		sfz::FramebufferResourceBuilder("GBuffer_fb")
+		.setScreenRelativeRes(internalResSetting)
+		.addRenderTarget("GBuffer_albedo")
+		.addRenderTarget("GBuffer_metallic_roughness")
+		.addRenderTarget("GBuffer_emissive")
+		.addRenderTarget("GBuffer_normal")
+		.setDepthBuffer("GBuffer_depthbuffer")
+		.build(screenRes));
+
+	// Shadows
+	resources.addTexture(
+		sfz::TextureResource::createFixedSize(
+			"ShadowMapCascaded1",
+			ZG_TEXTURE_FORMAT_DEPTH_F32,
+			vec2_u32(2048, 2048),
+			1,
+			ZG_TEXTURE_USAGE_DEPTH_BUFFER,
+			true));
+	resources.addFramebuffer(
+		sfz::FramebufferResourceBuilder("ShadowMapCascaded1_fb")
+		.setFixedRes(vec2_u32(2048, 2048))
+		.setDepthBuffer("ShadowMapCascaded1")
+		.build(screenRes));
+
+	resources.addTexture(
+		sfz::TextureResource::createFixedSize(
+			"ShadowMapCascaded2",
+			ZG_TEXTURE_FORMAT_DEPTH_F32,
+			vec2_u32(2048, 2048),
+			1,
+			ZG_TEXTURE_USAGE_DEPTH_BUFFER,
+			true));
+	resources.addFramebuffer(
+		sfz::FramebufferResourceBuilder("ShadowMapCascaded2_fb")
+		.setFixedRes(vec2_u32(2048, 2048))
+		.setDepthBuffer("ShadowMapCascaded2")
+		.build(screenRes));
+
+	resources.addTexture(
+		sfz::TextureResource::createFixedSize(
+			"ShadowMapCascaded3",
+			ZG_TEXTURE_FORMAT_DEPTH_F32,
+			vec2_u32(1024, 1024),
+			1,
+			ZG_TEXTURE_USAGE_DEPTH_BUFFER,
+			true));
+	resources.addFramebuffer(
+		sfz::FramebufferResourceBuilder("ShadowMapCascaded3_fb")
+		.setFixedRes(vec2_u32(1024, 1024))
+		.setDepthBuffer("ShadowMapCascaded3")
+		.build(screenRes));
+
+	// Light accumulation
+	resources.addTexture(
+		sfz::TextureResource::createScreenRelative(
+			"LightAccumulation1",
+			ZG_TEXTURE_FORMAT_RGBA_F16,
+			screenRes,
+			1.0f,
+			internalResSetting,
+			ZG_TEXTURE_USAGE_RENDER_TARGET,
+			true));
+	resources.addFramebuffer(
+		sfz::FramebufferResourceBuilder("LightAccumulation1_fb")
+		.setScreenRelativeRes(internalResSetting)
+		.addRenderTarget("LightAccumulation1")
+		.build(screenRes));
 }
 
 static sfz::UpdateOp onUpdate(
@@ -591,7 +713,7 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		renderer.stageBeginInput("GBuffer Pass");
-
+		renderer.stageSetFramebuffer("GBuffer_fb");
 		renderer.stageClearDepthBufferOptimal();
 		renderer.stageClearRenderTargetsOptimal();
 
@@ -637,7 +759,7 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		renderer.stageBeginInput("Directional Shadow Map Pass 1");
-
+		renderer.stageSetFramebuffer("ShadowMapCascaded1_fb");
 		renderer.stageClearDepthBufferOptimal();
 
 		// Set push constants
@@ -651,7 +773,7 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		renderer.stageBeginInput("Directional Shadow Map Pass 2");
-
+		renderer.stageSetFramebuffer("ShadowMapCascaded2_fb");
 		renderer.stageClearDepthBufferOptimal();
 
 		// Set push constants
@@ -665,7 +787,7 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		renderer.stageBeginInput("Directional Shadow Map Pass 3");
-
+		renderer.stageSetFramebuffer("ShadowMapCascaded3_fb");
 		renderer.stageClearDepthBufferOptimal();
 
 		// Set push constants
@@ -775,6 +897,8 @@ static sfz::UpdateOp onUpdate(
 
 	{
 		renderer.stageBeginInput("Copy Out Pass");
+		renderer.stageSetFramebufferDefault();
+		renderer.stageClearRenderTargetsOptimal();
 
 		// Set window resolution push constant
 		vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
