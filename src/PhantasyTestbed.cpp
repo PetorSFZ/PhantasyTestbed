@@ -17,6 +17,7 @@
 #include <sfz/rendering/ImguiSupport.hpp>
 #include <sfz/rendering/SphereLight.hpp>
 #include <sfz/resources/FramebufferResource.hpp>
+#include <sfz/resources/MeshResource.hpp>
 #include <sfz/resources/ResourceManager.hpp>
 #include <sfz/resources/TextureResource.hpp>
 #include <sfz/state/GameState.hpp>
@@ -594,7 +595,7 @@ static sfz::UpdateOp onUpdate(
 	strID fullscreenTriangleId = strID("FullscreenTriangle");
 	sfz::PoolHandle fullscreenTriangleHandle = resources.getMeshHandle(fullscreenTriangleId);
 	sfz_assert(fullscreenTriangleHandle != NULL_HANDLE);
-	sfz::MeshItem* fullscreenTriangleMesh = resources.getMesh(fullscreenTriangleHandle);
+	sfz::MeshResource* fullscreenTriangleMesh = resources.getMesh(fullscreenTriangleHandle);
 
 	auto drawFullscreenTriangle = [&]() {
 		renderer.stageSetIndexBuffer(fullscreenTriangleMesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
@@ -618,7 +619,7 @@ static sfz::UpdateOp onUpdate(
 	auto drawMesh = [&](strID id, MeshRegisters registers) {
 		sfz::PoolHandle meshHandle = resources.getMeshHandle(id);
 		sfz_assert(meshHandle != NULL_HANDLE);
-		sfz::MeshItem* mesh = resources.getMesh(meshHandle);
+		sfz::MeshResource* mesh = resources.getMesh(meshHandle);
 
 		renderer.stageSetVertexBuffer(0, mesh->vertexBuffer);
 		renderer.stageSetIndexBuffer(mesh->indexBuffer, false);
