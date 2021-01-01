@@ -16,6 +16,7 @@
 #include <sfz/rendering/FullscreenTriangle.hpp>
 #include <sfz/rendering/ImguiSupport.hpp>
 #include <sfz/rendering/SphereLight.hpp>
+#include <sfz/resources/BufferResource.hpp>
 #include <sfz/resources/FramebufferResource.hpp>
 #include <sfz/resources/MeshResource.hpp>
 #include <sfz/resources/ResourceManager.hpp>
@@ -446,6 +447,12 @@ static void onInit(void* userPtr)
 		.setScreenRelativeRes(internalResSetting)
 		.addRenderTarget("LightAccumulation1")
 		.build(screenRes));
+
+	// Constant buffers
+	resources.addBuffer(
+		sfz::BufferResource::createStreaming("Directional Light Const Buffer", 1, 256, 3));
+	resources.addBuffer(
+		sfz::BufferResource::createStreaming("Point Lights Buffer", 1, 4112, 3));
 }
 
 static sfz::UpdateOp onUpdate(
