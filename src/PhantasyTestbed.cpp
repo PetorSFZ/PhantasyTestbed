@@ -629,7 +629,7 @@ static sfz::UpdateOp onUpdate(
 		sfz::MeshResource* mesh = resources.getMesh(meshHandle);
 
 		renderer.stageSetVertexBuffer(0, mesh->vertexBuffer);
-		renderer.stageSetIndexBuffer(mesh->indexBuffer, false);
+		renderer.stageSetIndexBuffer(mesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
 
 		sfz::PipelineBindings commonBindings;
 		if (registers.materialsArray != ~0u) {
