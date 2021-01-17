@@ -554,7 +554,7 @@ static sfz::UpdateOp onUpdate(
 	GlobalConfig& cfg = getGlobalConfig();
 	const float internalResScale =
 		cfg.getSetting("Renderer", "internalResolutionScale")->floatValue();
-	const vec2_i32 internalRes = vec2_i32(
+	const vec2_u32 internalRes = vec2_u32(
 		std::round(windowRes.x * internalResScale), std::round(windowRes.y * internalResScale));
 
 	mat4 viewMatrix;
@@ -604,11 +604,11 @@ static sfz::UpdateOp onUpdate(
 	sfz_assert(fullscreenTriangleHandle != NULL_HANDLE);
 	sfz::MeshResource* fullscreenTriangleMesh = resources.getMesh(fullscreenTriangleHandle);
 
-	auto drawFullscreenTriangle = [&]() {
-		renderer.stageSetIndexBuffer(fullscreenTriangleMesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
-		renderer.stageSetVertexBuffer(0, fullscreenTriangleMesh->vertexBuffer);
+	auto drawFullscreenTriangle = [&](sfz::HighLevelCmdList& cmdList) {
+		cmdList.setIndexBuffer(fullscreenTriangleMesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
+		cmdList.setVertexBuffer(0, fullscreenTriangleMesh->vertexBuffer);
 		sfz_assert(fullscreenTriangleMesh->components.size() == 1);
-		renderer.stageDrawTrianglesIndexed(
+		cmdList.drawTrianglesIndexed(
 			fullscreenTriangleMesh->components[0].firstIndex,
 			fullscreenTriangleMesh->components[0].numIndices);
 	};
@@ -623,15 +623,15 @@ static sfz::UpdateOp onUpdate(
 		uint32_t emissive = ~0u;
 	};
 
-	auto drawMesh = [&](strID id, MeshRegisters registers) {
+	auto drawMesh = [&](sfz::HighLevelCmdList& cmdList, strID id, MeshRegisters registers) {
 		sfz::PoolHandle meshHandle = resources.getMeshHandle(id);
 		sfz_assert(meshHandle != NULL_HANDLE);
 		sfz::MeshResource* mesh = resources.getMesh(meshHandle);
 
-		renderer.stageSetVertexBuffer(0, mesh->vertexBuffer);
-		renderer.stageSetIndexBuffer(mesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
+		cmdList.setVertexBuffer(0, mesh->vertexBuffer);
+		cmdList.setIndexBuffer(mesh->indexBuffer, ZG_INDEX_BUFFER_TYPE_UINT32);
 
-		sfz::PipelineBindings commonBindings;
+		sfz::Bindings commonBindings;
 		if (registers.materialsArray != ~0u) {
 			commonBindings.addConstBuffer(mesh->materialsBuffer, registers.materialsArray);
 		}
@@ -645,11 +645,11 @@ static sfz::UpdateOp onUpdate(
 			if (registers.materialIdxPushConstant != ~0u) {
 				sfz::vec4_u32 tmp = sfz::vec4_u32(0u);
 				tmp.x = comp.materialIdx;
-				renderer.stageSetPushConstant(registers.materialIdxPushConstant, tmp);
+				cmdList.setPushConstant(registers.materialIdxPushConstant, tmp);
 			}
 
 			// Create texture bindings
-			sfz::PipelineBindings bindings = commonBindings;
+			sfz::Bindings bindings = commonBindings;
 			auto bindTexture = [&](uint32_t texRegister, strID texID) {
 				if (texRegister != ~0u && texID.isValid()) {
 					bindings.addTexture(texID, texRegister);
@@ -659,8 +659,8 @@ static sfz::UpdateOp onUpdate(
 			bindTexture(registers.metallicRoughness, material.metallicRoughnessTex);
 			bindTexture(registers.emissive, material.emissiveTex);
 
-			renderer.stageSetBindings(bindings);
-			renderer.stageDrawTrianglesIndexed(comp.firstIndex, comp.numIndices);
+			cmdList.setBindings(bindings);
+			cmdList.drawTrianglesIndexed(comp.firstIndex, comp.numIndices);
 		}
 	};
 
@@ -670,7 +670,7 @@ static sfz::UpdateOp onUpdate(
 	// Lambda for rendering all geometry
 	// --------------------------------------------------------------------------------------------
 
-	auto renderGeometry = [&](const MeshRegisters& registers, mat4 viewMatrix) {
+	auto renderGeometry = [&](sfz::HighLevelCmdList& cmdList, const MeshRegisters& registers, mat4 viewMatrix) {
 		// Static scene
 		for (const RenderEntity& entity : state.mStaticScene.renderEntities) {
 
@@ -686,8 +686,8 @@ static sfz::UpdateOp onUpdate(
 			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
 
 			// Render mesh
-			renderer.stageSetPushConstant(1, dynMatrices);
-			drawMesh(entity.meshId, registers);
+			cmdList.setPushConstant(1, dynMatrices);
+			drawMesh(cmdList, entity.meshId, registers);
 		}
 
 		// Dynamic objects
@@ -710,36 +710,14 @@ static sfz::UpdateOp onUpdate(
 			dynMatrices.normalMatrix = sfz::inverse(sfz::transpose(dynMatrices.modelViewMatrix));
 
 			// Render mesh
-			renderer.stageSetPushConstant(1, dynMatrices);
-			drawMesh(entity.meshId, registers);
+			cmdList.setPushConstant(1, dynMatrices);
+			drawMesh(cmdList, entity.meshId, registers);
 		}
 	};
 
 
 	// GBuffer and directional shadow map pass
 	// --------------------------------------------------------------------------------------------
-
-	{
-		renderer.stageBeginInput("GBuffer Pass");
-		renderer.stageSetFramebuffer("GBuffer_fb");
-		renderer.stageClearDepthBufferOptimal();
-		renderer.stageClearRenderTargetsOptimal();
-
-		// Set projection matrix push constant
-		renderer.stageSetPushConstant(0, projMatrix);
-
-		MeshRegisters registers;
-		registers.materialIdxPushConstant = 2;
-		registers.materialsArray = 3;
-		registers.albedo = 0;
-		registers.metallicRoughness = 1;
-		registers.emissive = 2;
-
-		// Draw geometry
-		renderGeometry(registers, viewMatrix);
-
-		renderer.stageEndInput();
-	}
 
 	// Calculate cascaded shadow map info
 	const vec3 dirLightDirWS = sfz::normalize(vec3(0.0f, -1.0f, 0.1f));
@@ -766,132 +744,134 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	{
-		renderer.stageBeginInput("Directional Shadow Map Pass 1");
-		renderer.stageSetFramebuffer("ShadowMapCascaded1_fb");
-		renderer.stageClearDepthBufferOptimal();
+		sfz::HighLevelCmdList cmdList = renderer.beginCommandList("GBuffer + Cascaded Shadows");
 
-		// Set push constants
-		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[0]);
+		// GBuffer pass
+		{
+			cmdList.setShader("GBuffer Generation");
+			cmdList.setFramebuffer("GBuffer_fb");
+			cmdList.clearDepthBufferOptimal();
+			cmdList.clearRenderTargetsOptimal();
 
-		// Draw geometry
-		renderGeometry(noRegisters, cascadedInfo.viewMatrices[0]);
+			cmdList.setPushConstant(0, projMatrix);
 
-		renderer.stageEndInput();
+			MeshRegisters registers;
+			registers.materialIdxPushConstant = 2;
+			registers.materialsArray = 3;
+			registers.albedo = 0;
+			registers.metallicRoughness = 1;
+			registers.emissive = 2;
+
+			renderGeometry(cmdList, registers, viewMatrix);
+		}
+
+		// Shadows
+		{
+			cmdList.setShader("Shadow Map Generation");
+			cmdList.setFramebuffer("ShadowMapCascaded1_fb");
+			cmdList.clearDepthBufferOptimal();
+			cmdList.setPushConstant(0, cascadedInfo.projMatrices[0]);
+			renderGeometry(cmdList, noRegisters, cascadedInfo.viewMatrices[0]);
+		}
+		{
+			cmdList.setShader("Shadow Map Generation");
+			cmdList.setFramebuffer("ShadowMapCascaded2_fb");
+			cmdList.clearDepthBufferOptimal();
+			cmdList.setPushConstant(0, cascadedInfo.projMatrices[1]);
+			renderGeometry(cmdList, noRegisters, cascadedInfo.viewMatrices[1]);
+		}
+		{
+			cmdList.setShader("Shadow Map Generation");
+			cmdList.setFramebuffer("ShadowMapCascaded3_fb");
+			cmdList.clearDepthBufferOptimal();
+			cmdList.setPushConstant(0, cascadedInfo.projMatrices[2]);
+			renderGeometry(cmdList, noRegisters, cascadedInfo.viewMatrices[2]);
+		}
+
+		renderer.executeCommandList(std::move(cmdList));
 	}
-
-	{
-		renderer.stageBeginInput("Directional Shadow Map Pass 2");
-		renderer.stageSetFramebuffer("ShadowMapCascaded2_fb");
-		renderer.stageClearDepthBufferOptimal();
-
-		// Set push constants
-		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[1]);
-
-		// Draw geometry
-		renderGeometry(noRegisters, cascadedInfo.viewMatrices[1]);
-
-		renderer.stageEndInput();
-	}
-
-	{
-		renderer.stageBeginInput("Directional Shadow Map Pass 3");
-		renderer.stageSetFramebuffer("ShadowMapCascaded3_fb");
-		renderer.stageClearDepthBufferOptimal();
-
-		// Set push constants
-		renderer.stageSetPushConstant(0, cascadedInfo.projMatrices[2]);
-
-		// Draw geometry
-		renderGeometry(noRegisters, cascadedInfo.viewMatrices[2]);
-
-		renderer.stageEndInput();
-	}
-
 
 	// Directional and Point Light Shading
 	// --------------------------------------------------------------------------------------------
 
 	{
-		bool success = renderer.frameProgressNextStageGroup();
-		sfz_assert(success);
-	}
+		sfz::HighLevelCmdList cmdList = renderer.beginCommandList("Shading");
 
-	// Directional shading
-	{
-		renderer.stageBeginInput("Directional Shading Pass");
+		// Directional shading
+		{
+			cmdList.setShader("Directional Shading");
 
-		// Set constant buffers
-		renderer.stageSetPushConstant(0, invProjMatrix);
+			cmdList.setPushConstant(0, invProjMatrix);
 
-		struct {
-			sfz::DirectionalLight dirLight;
-			mat4 lightMatrix1;
-			mat4 lightMatrix2;
-			mat4 lightMatrix3;
-			float levelDist1;
-			float levelDist2;
-			float levelDist3;
-			float ___PADDING___;
-		} lightInfo;
-		lightInfo.dirLight.lightDirVS = sfz::transformDir(viewMatrix, dirLightDirWS);
-		lightInfo.dirLight.strength = vec3(10.0f);
-		lightInfo.lightMatrix1 = cascadedInfo.lightMatrices[0];
-		lightInfo.lightMatrix2 = cascadedInfo.lightMatrices[1];
-		lightInfo.lightMatrix3 = cascadedInfo.lightMatrices[2];
-		lightInfo.levelDist1 = cascadedInfo.levelDists[0];
-		lightInfo.levelDist2 = cascadedInfo.levelDists[1];
-		lightInfo.levelDist3 = cascadedInfo.levelDists[2];
-		renderer.stageUploadToStreamingBuffer(
-			"Directional Light Const Buffer", (const uint8_t*)&lightInfo, sizeof(lightInfo));
+			struct {
+				sfz::DirectionalLight dirLight;
+				mat4 lightMatrix1;
+				mat4 lightMatrix2;
+				mat4 lightMatrix3;
+				float levelDist1;
+				float levelDist2;
+				float levelDist3;
+				float ___PADDING___;
+			} lightInfo;
+			lightInfo.dirLight.lightDirVS = sfz::transformDir(viewMatrix, dirLightDirWS);
+			lightInfo.dirLight.strength = vec3(10.0f);
+			lightInfo.lightMatrix1 = cascadedInfo.lightMatrices[0];
+			lightInfo.lightMatrix2 = cascadedInfo.lightMatrices[1];
+			lightInfo.lightMatrix3 = cascadedInfo.lightMatrices[2];
+			lightInfo.levelDist1 = cascadedInfo.levelDists[0];
+			lightInfo.levelDist2 = cascadedInfo.levelDists[1];
+			lightInfo.levelDist3 = cascadedInfo.levelDists[2];
+			cmdList.uploadToStreamingBuffer(
+				"Directional Light Const Buffer", (const uint8_t*)&lightInfo, sizeof(lightInfo));
 
-		sfz::PipelineBindings bindings;
-		bindings.addConstBuffer("Directional Light Const Buffer", 1);
-		bindings.addTexture("GBuffer_albedo", 0);
-		bindings.addTexture("GBuffer_metallic_roughness", 1);
-		bindings.addTexture("GBuffer_emissive", 2);
-		bindings.addTexture("GBuffer_normal", 3);
-		bindings.addTexture("GBuffer_depthbuffer", 4);
-		bindings.addTexture("ShadowMapCascaded1", 5);
-		bindings.addTexture("ShadowMapCascaded2", 6);
-		bindings.addTexture("ShadowMapCascaded3", 7);
-		bindings.addUnorderedTexture("LightAccumulation1", 0, 0);
-		renderer.stageSetBindings(bindings);
+			sfz::Bindings bindings;
+			bindings.addConstBuffer("Directional Light Const Buffer", 1);
+			bindings.addTexture("GBuffer_albedo", 0);
+			bindings.addTexture("GBuffer_metallic_roughness", 1);
+			bindings.addTexture("GBuffer_emissive", 2);
+			bindings.addTexture("GBuffer_normal", 3);
+			bindings.addTexture("GBuffer_depthbuffer", 4);
+			bindings.addTexture("ShadowMapCascaded1", 5);
+			bindings.addTexture("ShadowMapCascaded2", 6);
+			bindings.addTexture("ShadowMapCascaded3", 7);
+			bindings.addUnorderedTexture("LightAccumulation1", 0, 0);
+			cmdList.setBindings(bindings);
 
-		// Fullscreen pass
-		// Run one thread per pixel
-		const vec2_i32 groupDim = renderer.stageGetComputeGroupDims().xy;
-		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
-		renderer.stageDispatchComputeNoAutoBindings(numGroups.x, numGroups.y);
+			// Fullscreen pass
+			// Run one thread per pixel
+			const vec2_u32 groupDim = cmdList.getComputeGroupDims().xy;
+			const vec2_u32 numGroups = (internalRes + groupDim - vec2_u32(1)) / groupDim;
+			cmdList.dispatchCompute(numGroups);
+			cmdList.unorderedBarrierTexture("LightAccumulation1");
+		}
 
-		renderer.stageEndInput();
-	}
+		// Point lights
+		{
+			cmdList.setShader("Point Light Shading");
 
-	// Point lights
-	{
-		renderer.stageBeginInput("Point Light Shading Pass");
+			cmdList.setPushConstant(0, invProjMatrix);
 
-		// Set push constants
-		renderer.stageSetPushConstant(0, invProjMatrix);
+			cmdList.uploadToStreamingBuffer(
+				"Point Lights Buffer", (const uint8_t*)&shaderPointLights, sizeof(shaderPointLights));
 
-		renderer.stageUploadToStreamingBufferUntyped(
-			"Point Lights Buffer", &shaderPointLights, sizeof(uint8_t), sizeof(shaderPointLights));
+			sfz::Bindings bindings;
+			bindings.addConstBuffer("Point Lights Buffer", 1);
+			bindings.addTexture("GBuffer_albedo", 0);
+			bindings.addTexture("GBuffer_metallic_roughness", 1);
+			bindings.addTexture("GBuffer_normal", 2);
+			bindings.addTexture("GBuffer_depthbuffer", 3);
+			bindings.addUnorderedTexture("LightAccumulation1", 0, 0);
+			cmdList.setBindings(bindings);
 
-		sfz::PipelineBindings bindings;
-		bindings.addConstBuffer("Point Lights Buffer", 1);
-		bindings.addTexture("GBuffer_albedo", 0);
-		bindings.addTexture("GBuffer_metallic_roughness", 1);
-		bindings.addTexture("GBuffer_normal", 2);
-		bindings.addTexture("GBuffer_depthbuffer", 3);
-		bindings.addUnorderedTexture("LightAccumulation1", 0, 0);
-		renderer.stageSetBindings(bindings);
+			// Fullscreen pass
+			// Run one thread per pixel
+			const vec2_u32 groupDim = cmdList.getComputeGroupDims().xy;
+			const vec2_u32 numGroups = (internalRes + groupDim - vec2_u32(1)) / groupDim;
+			cmdList.dispatchCompute(numGroups.x, numGroups.y);
+			cmdList.unorderedBarrierTexture("LightAccumulation1");
+		}
 
-		// Fullscreen pass
-		// Run one thread per pixel
-		const vec2_i32 groupDim = renderer.stageGetComputeGroupDims().xy;
-		const vec2_i32 numGroups = (internalRes + groupDim - vec2_i32(1)) / groupDim;
-		renderer.stageDispatchComputeNoAutoBindings(numGroups.x, numGroups.y);
-
-		renderer.stageEndInput();
+		renderer.executeCommandList(std::move(cmdList));
 	}
 
 
@@ -899,27 +879,25 @@ static sfz::UpdateOp onUpdate(
 	// --------------------------------------------------------------------------------------------
 
 	{
-		bool success = renderer.frameProgressNextStageGroup();
-		sfz_assert(success);
-	}
+		sfz::HighLevelCmdList cmdList = renderer.beginCommandList("Copy Out");
 
-	{
-		renderer.stageBeginInput("Copy Out Pass");
-		renderer.stageSetFramebufferDefault();
-		renderer.stageClearRenderTargetsOptimal();
+		// Copy out
+		{
+			cmdList.setShader("Copy Out Shader");
+			cmdList.setFramebufferDefault();
+			cmdList.clearRenderTargetsOptimal();
 
-		// Set window resolution push constant
-		vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
-		renderer.stageSetPushConstant(0, pushConstantRes);
+			vec4_u32 pushConstantRes = vec4_u32(uint32_t(windowRes.x), uint32_t(windowRes.y), 0u, 0u);
+			cmdList.setPushConstant(0, pushConstantRes);
 
-		sfz::PipelineBindings bindings;
-		bindings.addTexture("LightAccumulation1", 0);
-		renderer.stageSetBindings(bindings);
+			sfz::Bindings bindings;
+			bindings.addTexture("LightAccumulation1", 0);
+			cmdList.setBindings(bindings);
 
-		// Fullscreen pass
-		drawFullscreenTriangle();
+			drawFullscreenTriangle(cmdList);
+		}
 
-		renderer.stageEndInput();
+		renderer.executeCommandList(std::move(cmdList));
 	}
 
 	// Update console and inject testbed specific windows
