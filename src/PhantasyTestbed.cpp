@@ -544,7 +544,7 @@ static sfz::UpdateOp onUpdate(
 
 	// Grab common ECS stuff
 	GameStateHeader* gameState = state.mGameStateContainer.getHeader();
-	ComponentMask* masks = gameState->componentMasks();
+	CompMask* masks = gameState->componentMasks();
 
 	// Calculate view and projection matrices
 	const vec2_i32 windowRes = renderer.windowResolution();
@@ -583,8 +583,8 @@ static sfz::UpdateOp onUpdate(
 		pointLight.strength = vec3(sphereLight.color) * (1.0f / 255.0f) * sphereLight.strength;
 	}
 	phSphereLight* sphereLights = gameState->components<phSphereLight>(SPHERE_LIGHT_TYPE);
-	ComponentMask sphereLightyMask =
-		ComponentMask::activeMask() | ComponentMask::fromType(SPHERE_LIGHT_TYPE);
+	CompMask sphereLightyMask =
+		CompMask::activeMask() | CompMask::fromType(SPHERE_LIGHT_TYPE);
 	for (uint32_t entity = 0; entity < gameState->maxNumEntities; entity++) {
 		if (!masks[entity].fulfills(sphereLightyMask)) continue;
 
@@ -692,8 +692,8 @@ static sfz::UpdateOp onUpdate(
 
 		// Dynamic objects
 		RenderEntity* renderEntities = gameState->components<RenderEntity>(RENDER_ENTITY_TYPE);
-		ComponentMask renderEntityMask =
-			ComponentMask::activeMask() | ComponentMask::fromType(RENDER_ENTITY_TYPE);
+		CompMask renderEntityMask =
+			CompMask::activeMask() | CompMask::fromType(RENDER_ENTITY_TYPE);
 		for (uint32_t entityId = 0; entityId < gameState->maxNumEntities; entityId++) {
 			if (!masks[entityId].fulfills(renderEntityMask)) continue;
 			const RenderEntity& entity = renderEntities[entityId];
