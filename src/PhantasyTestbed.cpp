@@ -15,7 +15,6 @@
 #include <sfz/renderer/CascadedShadowMaps.hpp>
 #include <sfz/rendering/FullscreenTriangle.hpp>
 #include <sfz/rendering/ImguiSupport.hpp>
-#include <sfz/rendering/SphereLight.hpp>
 #include <sfz/resources/BufferResource.hpp>
 #include <sfz/resources/FramebufferResource.hpp>
 #include <sfz/resources/MeshResource.hpp>
@@ -40,6 +39,19 @@ using namespace sfz;
 
 // Helper structs
 // ------------------------------------------------------------------------------------------------
+
+const uint32_t SPHERE_LIGHT_STATIC_SHADOWS_BIT = 1 << 0; // Static objects casts shadows
+const uint32_t SPHERE_LIGHT_DYNAMIC_SHADOWS_BIT = 1 << 1; // Dynamic objects casts shadows
+
+struct phSphereLight {
+	sfz::vec3 pos = sfz::vec3(0.0f);
+	float radius = 0.0f; // Size of the light emitter, 0 makes it a point light
+	float range; // Range of the emitted light
+	float strength; // The strength of the emitted light
+	sfz::vec3_u8 color; uint8_t ___padding_unused___; // The color of the emitted light
+	uint32_t bitmaskFlags;
+};
+static_assert(sizeof(phSphereLight) == sizeof(uint32_t) * 8, "phSphereLight is padded");
 
 struct CameraData {
 	sfz::vec3 pos = sfz::vec3(0.0f);
