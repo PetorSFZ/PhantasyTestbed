@@ -901,7 +901,7 @@ static sfz::UpdateOp onUpdate(
 	}
 
 	// Update console and inject testbed specific windows
-	state.console.render();
+	state.console.render(windowRes);
 	if (state.console.active()) {
 
 		// View of ECS system
